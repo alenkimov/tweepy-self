@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "tweepy-self"
+version = "0.1.0"
+description = "Twitter (selfbot) for Python!"
+authors = ["Alen <alen.kimov@gmail.com>"]
+readme = "README.md"
+packages = [{include = "tweepy-self"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
