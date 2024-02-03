@@ -59,15 +59,15 @@ class Account:
         return hidden_value(self.auth_token) if self.auth_token else None
 
     @property
-    def hidden_password(self) -> str:
+    def hidden_password(self) -> str | None:
         return hidden_value(self.password) if self.password else None
 
     @property
-    def hidden_key2fa(self) -> str:
+    def hidden_key2fa(self) -> str | None:
         return hidden_value(self.key2fa) if self.key2fa else None
 
     @property
-    def hidden_backup_code(self) -> str:
+    def hidden_backup_code(self) -> str | None:
         return hidden_value(self.backup_code) if self.backup_code else None
 
     def __repr__(self):
