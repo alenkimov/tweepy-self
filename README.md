@@ -40,6 +40,9 @@ asyncio.run(main())
 ## More
 Automating user accounts is against the Twitter ToS. This library is a proof of concept and I cannot recommend using it. Do so at your own risk
 
+## Документация (устаревшая)
+`Код ушел немного дальше, чем эта документация.`
+
 Библиотека позволяет работать с неофициальным API Twitter, а именно:
 - Логин
 - Анлок
