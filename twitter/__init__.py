@@ -5,9 +5,9 @@ Twitter API Wrapper
 A basic wrapper for the Twitter user API.
 """
 
-from ._twitter_client import Client
-from ._account import Account, AccountStatus
-from ._models import Tweet, UserData
+from .client import Client
+from .account import Account, AccountStatus
+from .models import Tweet, UserData
 from . import errors, utils
 
 __all__ = [

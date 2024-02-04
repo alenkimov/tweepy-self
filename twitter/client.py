@@ -23,10 +23,10 @@ from .errors import (
     Locked,
     Suspended,
 )
-from ._file_utils import to_json
-from ._client import BaseClient
-from ._account import Account, AccountStatus
-from ._models import UserData, Tweet
+from .utils import to_json
+from .base import BaseClient
+from .account import Account, AccountStatus
+from .models import UserData, Tweet
 from .utils import remove_at_sign, parse_oauth_html, parse_unlock_html
 
 

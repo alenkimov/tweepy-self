@@ -1,6 +1,6 @@
 from curl_cffi import requests
 
-from ._account import Account
+from .account import Account
 
 __all__ = [
     "TwitterException",

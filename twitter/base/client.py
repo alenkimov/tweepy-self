@@ -1,4 +1,4 @@
-from ._session import BaseAsyncSession
+from .session import BaseAsyncSession
 
 
 class BaseClient:
