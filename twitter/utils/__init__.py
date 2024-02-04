@@ -7,10 +7,6 @@ from .file import (
     write_json,
     to_json,
 )
-from .accounts import (
-    load_accounts_from_file,
-    extract_accounts_to_file,
-)
 from .html import (
     parse_unlock_html,
     parse_oauth_html,
@@ -31,8 +27,6 @@ __all__ = [
     "write_lines",
     "write_json",
     "to_json",
-    "load_accounts_from_file",
-    "extract_accounts_to_file",
     "parse_unlock_html",
     "parse_oauth_html",
     "remove_at_sign",

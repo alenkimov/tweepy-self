@@ -6,7 +6,7 @@ A basic wrapper for the Twitter user API.
 """
 
 from .client import Client
-from .account import Account, AccountStatus
+from .account import Account, AccountStatus, load_accounts_from_file, extract_accounts_to_file
 from .models import Tweet, UserData
 from . import errors, utils
 
@@ -16,6 +16,8 @@ __all__ = [
     "AccountStatus",
     "utils",
     "errors",
+    "load_accounts_from_file",
+    "extract_accounts_to_file",
 ]
 
 

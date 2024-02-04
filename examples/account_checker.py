@@ -9,8 +9,7 @@ from typing import Iterable
 
 from curl_cffi import requests
 from better_proxy import Proxy
-from twitter._file_utils import load_lines, write_lines
-
+from twitter.utils import load_lines, write_lines
 import twitter
 
 
@@ -51,7 +50,7 @@ def load_accounts_with_additional_data() -> list[TwitterAccountWithAdditionalDat
             status = file.stem
             for additional_data in load_lines(file):
                 auth_token = additional_data.split(SEPARATOR)[0]
-                account = twitter.Account(auth_token)
+                account = twitter.Account(auth_token=auth_token)
                 account.status = status
                 accounts.append((additional_data, account))
     return accounts

@@ -28,7 +28,7 @@ pip install tweepy-self
 import asyncio
 import twitter
 
-account = twitter.Account("auth_token")
+account = twitter.Account(auth_token="auth_token")
 
 async def main():
     async with twitter.Client(account) as twitter_client:

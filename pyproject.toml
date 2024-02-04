@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "tweepy-self"
-version = "1.0.0.b2"
+version = "1.0.0.b3"
 description = "Twitter (selfbot) for Python!"
 authors = ["Alen <alen.kimov@gmail.com>"]
 readme = "README.md"
 packages = [{include = "twitter"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.11"
 curl_cffi = {version = "0.6.0b9", allow-prereleases = true}
 python3-capsolver = "^0.9"
 better-proxy = "0.5.0"
