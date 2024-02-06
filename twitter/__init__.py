@@ -24,3 +24,7 @@ __all__ = [
 import warnings
 # HACK: Ignore event loop warnings from curl_cffi
 warnings.filterwarnings('ignore', module='curl_cffi')
+
+
+from python3_capsolver.core import config
+config.APP_ID = "6F895B2F-F454-44D1-8FE0-77ACAD3DBDC8"
