@@ -6,7 +6,6 @@ class BaseAsyncSession(requests.AsyncSession):
     """
     Базовая асинхронная сессия:
         - Принимает прокси в формате URL и better-proxy.
-        - Отключает верификацию SSL сертификатов по умолчанию.
         - По умолчанию устанавливает версию браузера chrome120.
         - По умолчанию устанавливает user-agent под версию браузера chrome120.
     """
@@ -34,7 +33,6 @@ class BaseAsyncSession(requests.AsyncSession):
         headers = session_kwargs["headers"] = session_kwargs.get("headers") or {}
         headers.update(self.DEFAULT_HEADERS)
         session_kwargs["impersonate"] = session_kwargs.get("impersonate") or self.DEFAULT_IMPERSONATE
-        session_kwargs["verify"] = session_kwargs.get("verify", False)
         super().__init__(**session_kwargs)
         self.proxy = proxy
 
