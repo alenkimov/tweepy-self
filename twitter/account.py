@@ -9,8 +9,8 @@ from .utils import hidden_value, load_lines, write_lines
 
 
 class AccountStatus(enum.StrEnum):
-    BAD_TOKEN = "BAD_TOKEN"  # (401) 32
     UNKNOWN   = "UNKNOWN"
+    BAD_TOKEN = "BAD_TOKEN"  # (401) 32
     SUSPENDED = "SUSPENDED"  # (403) 64, (200) 141
     LOCKED    = "LOCKED"     # (403) 326
     GOOD      = "GOOD"
@@ -27,7 +27,7 @@ class Account(BaseModel):
     username:    str | None
     password:    str | None
     email:       str | None
-    key2fa:      str | None = Field(default=None, pattern=r"^[a-f0-9]{12}$")
+    totp_secret: str | None = Field(default=None, pattern=r"^[a-f0-9]{12}$")
     backup_code: str | None = Field(default=None, pattern=r"^[A-Z0-9]{16}$")
     status: AccountStatus = AccountStatus.UNKNOWN
 
@@ -40,8 +40,8 @@ class Account(BaseModel):
         return hidden_value(self.password) if self.password else None
 
     @property
-    def hidden_key2fa(self) -> str | None:
-        return hidden_value(self.key2fa) if self.key2fa else None
+    def hidden_totp_secret(self) -> str | None:
+        return hidden_value(self.totp_secret) if self.totp_secret else None
 
     @property
     def hidden_backup_code(self) -> str | None:
@@ -53,11 +53,11 @@ class Account(BaseModel):
     def __str__(self):
         return self.hidden_auth_token
 
-    def get_2fa_code(self) -> str | None:
-        if not self.key2fa:
+    def get_totp_code(self) -> str | None:
+        if not self.totp_secret:
             raise ValueError("No key2fa")
 
-        return str(pyotp.TOTP(self.key2fa).now())
+        return str(pyotp.TOTP(self.totp_secret).now())
 
 
 def load_accounts_from_file(

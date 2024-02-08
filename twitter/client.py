@@ -1022,13 +1022,13 @@ class Client(BaseClient):
         return await self._send_task(flow_token, subtask_inputs, auth=False)
 
     async def _login_two_factor_auth_challenge(self, flow_token):
-        if not self.account.key2fa:
+        if not self.account.totp_secret:
             raise TwitterException(f"Failed to login. Task id: LoginTwoFactorAuthChallenge")
 
         subtask_inputs = [
             {
                 "subtask_id": "LoginTwoFactorAuthChallenge",
-                "enter_text": {"text": self.account.get_2fa_code(), "link": "next_link"}
+                "enter_text": {"text": self.account.get_totp_code(), "link": "next_link"}
             }
         ]
         return await self._send_task(flow_token, subtask_inputs, auth=False)
@@ -1171,7 +1171,7 @@ class Client(BaseClient):
                 },
                 {
                     "subtask_id": "TwoFactorEnrollmentAuthenticationAppEnterCodeSubtask",
-                    "enter_text": {"text": self.account.get_2fa_code(), "link": "next_link"}
+                    "enter_text": {"text": self.account.get_totp_code(), "link": "next_link"}
                 }
             ]
         return await self._send_task(flow_token, subtask_inputs)
@@ -1192,7 +1192,7 @@ class Client(BaseClient):
 
         for subtask in subtasks:
             if subtask["subtask_id"] == 'TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask':
-                self.account.key2fa = subtask['show_code']['code']
+                self.account.totp_secret = subtask['show_code']['code']
                 break
 
         flow_token, subtasks = await self._two_factor_enrollment_authentication_app_plain_code_subtask(flow_token)
