@@ -1,7 +1,7 @@
 import asyncio
 import twitter
 
-ACCOUNT = twitter.Account("auth_token")
+ACCOUNT = twitter.Account(auth_token="auth_token")
 IMAGE = open(f"image.png", "rb").read()
 
 

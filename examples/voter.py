@@ -59,8 +59,7 @@ if __name__ == '__main__':
         print(f"(Необязательно) Внесите прокси в любом формате "
               f"\n\tв файл по пути {PROXIES_TXT}")
 
-    # TODO from_file
-    accounts = twitter.Account.from_file(ACCOUNTS_TXT)
+    accounts = twitter.account.load_accounts_from_file(ACCOUNTS_TXT)
     if not accounts:
         print(f"Внесите аккаунты в формате {SEPARATOR.join(FIELDS)}"
               f" (auth_token - обязательный параметр, остальные - нет)"
