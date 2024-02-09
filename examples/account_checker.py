@@ -23,7 +23,6 @@ PROXIES_TXT = INPUT_OUTPUT_DIR / "PROXIES.txt"
 ACCOUNTS_TXT = INPUT_OUTPUT_DIR / f"{twitter.AccountStatus.UNKNOWN}.txt"
 [filepath.touch() for filepath in (PROXIES_TXT, ACCOUNTS_TXT)]
 
-MAX_TASKS = 100
 SEPARATOR = ":"
 
 
