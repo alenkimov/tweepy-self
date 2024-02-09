@@ -21,14 +21,14 @@ class AccountStatus(enum.StrEnum):
 
 class Account(BaseModel):
     auth_token:  str | None = Field(default=None, pattern=r"^[a-f0-9]{40}$")
-    ct0:         str | None
-    id:          int | None
-    name:        str | None
-    username:    str | None
-    password:    str | None
-    email:       str | None
-    totp_secret: str | None = Field(default=None, pattern=r"^[a-f0-9]{12}$")
-    backup_code: str | None = Field(default=None, pattern=r"^[A-Z0-9]{16}$")
+    ct0:         str | None = None
+    id:          int | None = None
+    name:        str | None = None
+    username:    str | None = None
+    password:    str | None = None
+    email:       str | None = None
+    totp_secret: str | None = None
+    backup_code: str | None = None
     status: AccountStatus = AccountStatus.UNKNOWN
 
     @property
