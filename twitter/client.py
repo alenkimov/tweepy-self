@@ -36,7 +36,7 @@ class Client(BaseClient):
         'authority': 'twitter.com',
         'origin': 'https://twitter.com',
         'x-twitter-active-user': 'yes',
-        # 'x-twitter-auth-type': 'OAuth2Session',
+        'x-twitter-auth-type': 'OAuth2Session',
         'x-twitter-client-language': 'en',
     }
     _GRAPHQL_URL = 'https://twitter.com/i/api/graphql'
@@ -73,11 +73,15 @@ class Client(BaseClient):
             account: Account,
             *,
             wait_on_rate_limit: bool = True,
+            capsolver_api_key: str = None,
+            max_unlock_attempts: int = 4,
             **session_kwargs,
     ):
         super().__init__(**session_kwargs)
         self.account = account
         self.wait_on_rate_limit = wait_on_rate_limit
+        self.capsolver_api_key = capsolver_api_key
+        self.max_unlock_attempts = max_unlock_attempts
 
     async def request(
             self,
@@ -148,7 +152,11 @@ class Client(BaseClient):
 
             if 326 in exc.api_codes:
                 self.account.status = AccountStatus.LOCKED
-                raise Locked(self.account)
+                if not self.capsolver_api_key:
+                    raise Locked(self.account)
+
+                await self.unlock()
+                return await self.request(method, url, auth, bearer, **kwargs)
 
             raise exc
 
@@ -170,7 +178,11 @@ class Client(BaseClient):
 
             if 326 in exc.api_codes:
                 self.account.status = AccountStatus.LOCKED
-                raise Locked(self.account)
+                if not self.capsolver_api_key:
+                    raise Locked(self.account)
+
+                await self.unlock()
+                return await self.request(method, url, auth, bearer, **kwargs)
 
             raise exc
 
@@ -722,6 +734,8 @@ class Client(BaseClient):
         is_updated = all(response_json.get(key) == value for key, value in data.items() if key != "url")
         if website: is_updated &= URL(website) == URL(response_json["entities"]["url"]["urls"][0]["expanded_url"])
         await self.establish_status()  # Изменение данных профиля часто замораживает аккаунт
+        await self.unlock()
+        await self.request_user_data()
         return is_updated
 
     async def establish_status(self):
@@ -888,11 +902,7 @@ class Client(BaseClient):
 
         return await self.request("POST", self._CAPTCHA_URL, data=payload, bearer=False)
 
-    async def unlock(
-            self,
-            capsolver_api_key: str,
-            attempts: int = 4):
-        await self.establish_status()
+    async def unlock(self):
         if not self.account.status == "LOCKED":
             return
 
@@ -901,7 +911,7 @@ class Client(BaseClient):
         attempt = 1
 
         funcaptcha = {
-            "api_key": capsolver_api_key,
+            "api_key": self.capsolver_api_key,
             "websiteURL": self._CAPTCHA_URL,
             "websitePublicKey": self._CAPTCHA_SITE_KEY,
         }
@@ -921,7 +931,7 @@ class Client(BaseClient):
             response, html = await self._confirm_unlock(authenticity_token, assignment_token,
                                                         verification_string=token)
 
-            if attempt > attempts or response.url == "https://twitter.com/?lang=en":
+            if attempt > self.max_unlock_attempts or response.url == "https://twitter.com/?lang=en":
                 await self.establish_status()
                 return
 
@@ -1034,10 +1044,6 @@ class Client(BaseClient):
         return await self._send_task(flow_token, subtask_inputs, auth=False)
 
     async def _viewer(self):
-        """
-        Здесь нужно забрать ct0
-        :return:
-        """
         url, query_id = self._action_to_url("Viewer")
         features = {
             'responsive_web_graphql_exclude_directive_enabled': True,
@@ -1066,6 +1072,8 @@ class Client(BaseClient):
         """
         url = 'https://twitter.com'
         response = await self._session.request("GET", url)
+        # TODO Если в сессии есть рабочий auth_token, то не вернет нужную страницу.
+        #   Поэтому нужно очищать сессию перед вызовом этого метода.
         guest_token = re.search(r'gt\s?=\s?\d+', response.text)[0].split('=')[1]
         return guest_token
 

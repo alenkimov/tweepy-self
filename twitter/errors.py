@@ -41,7 +41,7 @@ class BadToken(BadAccount):
 
 class Locked(BadAccount):
     def __init__(self, account: Account):
-        exception_message = f"Twitter account is locked. Captcha required to unlock."
+        exception_message = (f"Twitter account is locked. Paste CapSolver API key into Client instance to autounlock.")
         super().__init__(account, custom_exception_message=exception_message)
 
 
