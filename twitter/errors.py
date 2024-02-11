@@ -29,12 +29,12 @@ def _http_exception_message(
         detail: str | None,
         custom_exception_message: str = None,
 ):
-    exception_message = f"({response.status_code})"
+    exception_message = f"(response status: {response.status_code})"
     if custom_exception_message: exception_message += f" {custom_exception_message}"
     if detail: exception_message += f"\n(detail) {detail}"
     for error in api_errors:
         if "code" in error and "message" in error:
-            exception_message += f"\n(api_code={error['code']}) {error['message']}"
+            exception_message += f"\n(code {error['code']}) {error['message']}"
         elif "message" in error:
             exception_message += f"\n{error['message']}"
     return exception_message
@@ -58,9 +58,9 @@ class HTTPException(TwitterException):
 
         # Если ответ — строка, то это html
         if isinstance(data, str):
-            exception_message = f"({response.status_code}) HTML Response:\n{data}"
+            exception_message = f"(response status: {response.status_code}) HTML Response:\n{data}"
             if response.status_code == 429:
-                exception_message = (f"({response.status_code}) Rate limit exceeded."
+                exception_message = (f"(response status: {response.status_code}) Rate limit exceeded."
                                      f" Set wait_on_rate_limit=True to ignore this exception.")
             super().__init__(exception_message)
             return
