@@ -907,8 +907,11 @@ class Client(BaseClient):
             return
 
         response, html = await self.request("GET", self._CAPTCHA_URL, bearer=False)
-        authenticity_token, assignment_token, needs_unlock = parse_unlock_html(html)
+        authenticity_token, assignment_token, needs_unlock, needs_press_continue_button = parse_unlock_html(html)
         attempt = 1
+
+        if needs_press_continue_button:
+            raise TwitterException("Пока не умею так! Ждите обновление")
 
         funcaptcha = {
             "api_key": self.capsolver_api_key,
@@ -935,7 +938,11 @@ class Client(BaseClient):
                 await self.establish_status()
                 return
 
-            authenticity_token, assignment_token, needs_unlock = parse_unlock_html(html)
+            authenticity_token, assignment_token, needs_unlock, needs_press_continue_button = parse_unlock_html(html)
+
+            if needs_press_continue_button:
+                raise TwitterException("Пока не умею так! Ждите обновление")
+
             attempt += 1
 
     async def _task(self, **kwargs):
