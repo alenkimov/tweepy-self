@@ -746,8 +746,6 @@ class Client(BaseClient):
         # Проверяем, что все переданные параметры соответствуют полученным
         is_updated = all(response_json.get(key) == value for key, value in data.items() if key != "url")
         if website: is_updated &= URL(website) == URL(response_json["entities"]["url"]["urls"][0]["expanded_url"])
-        await self.establish_status()  # Изменение данных профиля часто замораживает аккаунт
-        await self.unlock()
         await self.request_user_data()
         return is_updated
 
