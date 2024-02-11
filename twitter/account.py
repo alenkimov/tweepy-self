@@ -9,11 +9,12 @@ from .utils import hidden_value, load_lines, write_lines
 
 
 class AccountStatus(enum.StrEnum):
-    UNKNOWN   = "UNKNOWN"
-    BAD_TOKEN = "BAD_TOKEN"  # (401) 32
-    SUSPENDED = "SUSPENDED"  # (403) 64, (200) 141
-    LOCKED    = "LOCKED"     # (403) 326
-    GOOD      = "GOOD"
+    UNKNOWN        = "UNKNOWN"
+    BAD_TOKEN      = "BAD_TOKEN"
+    SUSPENDED      = "SUSPENDED"
+    LOCKED         = "LOCKED"
+    CONSENT_LOCKED = "CONSENT_LOCKED"
+    GOOD           = "GOOD"
 
     def __str__(self):
         return self.value

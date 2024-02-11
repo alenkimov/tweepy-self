@@ -21,6 +21,7 @@ from .errors import (
     BadAccount,
     BadToken,
     Locked,
+    ConsentLocked,
     Suspended,
 )
 from .utils import to_json
@@ -135,7 +136,7 @@ class Client(BaseClient):
 
             if 32 in exc.api_codes:
                 self.account.status = AccountStatus.BAD_TOKEN
-                raise BadToken(self.account)
+                raise BadToken(exc, self.account)
 
             raise exc
 
@@ -148,12 +149,18 @@ class Client(BaseClient):
 
             if 64 in exc.api_codes:
                 self.account.status = AccountStatus.SUSPENDED
-                raise Suspended(self.account)
+                raise Suspended(exc, self.account)
 
             if 326 in exc.api_codes:
+                for error_data in exc.api_errors:
+                    if (error_data.get("code") == 326 and
+                            error_data.get("bounce_location") == "/i/flow/consent_flow"):
+                        self.account.status = AccountStatus.CONSENT_LOCKED
+                        raise ConsentLocked(exc, self.account)
+
                 self.account.status = AccountStatus.LOCKED
                 if not self.capsolver_api_key:
-                    raise Locked(self.account)
+                    raise Locked(exc, self.account)
 
                 await self.unlock()
                 return await self.request(method, url, auth, bearer, **kwargs)
@@ -174,12 +181,18 @@ class Client(BaseClient):
 
             if 141 in exc.api_codes:
                 self.account.status = AccountStatus.SUSPENDED
-                raise Suspended(self.account)
+                raise Suspended(exc, self.account)
 
             if 326 in exc.api_codes:
+                for error_data in exc.api_errors:
+                    if (error_data.get("code") == 326 and
+                            error_data.get("bounce_location") == "/i/flow/consent_flow"):
+                        self.account.status = AccountStatus.CONSENT_LOCKED
+                        raise ConsentLocked(exc, self.account)
+
                 self.account.status = AccountStatus.LOCKED
                 if not self.capsolver_api_key:
-                    raise Locked(self.account)
+                    raise Locked(exc, self.account)
 
                 await self.unlock()
                 return await self.request(method, url, auth, bearer, **kwargs)

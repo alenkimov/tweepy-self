@@ -14,6 +14,7 @@ __all__ = [
     "BadAccount",
     "BadToken",
     "Locked",
+    "ConsentLocked",
     "Suspended",
 ]
 
@@ -22,33 +23,21 @@ class TwitterException(Exception):
     pass
 
 
-class BadAccount(TwitterException):
-    def __init__(
-            self,
-            account: Account,
-            custom_exception_message: str = None,
-    ):
-        self.account = account
-        exception_message = f"Bad Twitter account."
-        super().__init__(custom_exception_message or exception_message)
-
-
-class BadToken(BadAccount):
-    def __init__(self, account: Account):
-        exception_message = f"Bad Twitter account's auth_token."
-        super().__init__(account, custom_exception_message=exception_message)
-
-
-class Locked(BadAccount):
-    def __init__(self, account: Account):
-        exception_message = (f"Twitter account is locked. Paste CapSolver API key into Client instance to autounlock.")
-        super().__init__(account, custom_exception_message=exception_message)
-
-
-class Suspended(BadAccount):
-    def __init__(self, account: Account):
-        exception_message = f"Twitter account is suspended."
-        super().__init__(account, custom_exception_message=exception_message)
+def _http_exception_message(
+        response: requests.Response,
+        api_errors: list[dict],
+        detail: str | None,
+        custom_exception_message: str = None,
+):
+    exception_message = f"({response.status_code})"
+    if custom_exception_message: exception_message += f" {custom_exception_message}"
+    if detail: exception_message += f"\n(detail) {detail}"
+    for error in api_errors:
+        if "code" in error and "message" in error:
+            exception_message += f"\n(api_code={error['code']}) {error['message']}"
+        elif "message" in error:
+            exception_message += f"\n{error['message']}"
+    return exception_message
 
 
 class HTTPException(TwitterException):
@@ -62,51 +51,31 @@ class HTTPException(TwitterException):
             custom_exception_message: str = None,
     ):
         self.response = response
-        self.api_errors: list[dict[str, int | str]] = []
+        self.api_errors: list[dict] = []
         self.api_codes: list[int] = []
         self.api_messages: list[str] = []
+        self.detail: str | None = None
 
         # Если ответ — строка, то это html
         if isinstance(data, str):
-            exception_message = f"{response.status_code}"
+            exception_message = f"({response.status_code}) HTML Response:\n{data}"
             if response.status_code == 429:
-                exception_message = (f"{response.status_code} Rate limit exceeded."
-                                     f"\nSet twitter.Client(wait_on_rate_limit=True) to ignore this exception.")
+                exception_message = (f"({response.status_code}) Rate limit exceeded."
+                                     f" Set wait_on_rate_limit=True to ignore this exception.")
             super().__init__(exception_message)
             return
 
-        errors = data.get("errors", [])
+        self.api_errors = data.get("errors", [])
+        self.detail = data.get("detail")
 
-        if "error" in data:
-            errors.append(data["error"])
-        else:
-            errors.append(data)
-
-        error_text = ""
-
-        for error in errors:
-            self.api_errors.append(error)
-
-            if isinstance(error, str):
-                self.api_messages.append(error)
-                error_text += '\n' + error
-                continue
-
+        for error in self.api_errors:
             if "code" in error:
                 self.api_codes.append(error["code"])
             if "message" in error:
                 self.api_messages.append(error["message"])
 
-            if "code" in error and "message" in error:
-                error_text += f"\n{error['code']} - {error['message']}"
-            elif "message" in error:
-                error_text += '\n' + error["message"]
-
-        if not error_text and "detail" in data:
-            self.api_messages.append(data["detail"])
-            error_text = '\n' + data["detail"]
-        exception_message = f"{response.status_code} {error_text}"
-        super().__init__(custom_exception_message or exception_message)
+        exception_message = _http_exception_message(response, self.api_errors, self.detail, custom_exception_message)
+        super().__init__(exception_message)
 
 
 class BadRequest(HTTPException):
@@ -143,3 +112,45 @@ class ServerError(HTTPException):
     """Exception raised for a 5xx HTTP status code.
     """
     pass
+
+
+class BadAccount(TwitterException):
+    def __init__(
+            self,
+            http_exception: "HTTPException",
+            account: Account,
+            custom_exception_message: str = None,
+    ):
+        self.http_exception = http_exception
+        self.account = account
+        exception_message = _http_exception_message(
+            http_exception.response,
+            http_exception.api_errors,
+            http_exception.detail,
+            custom_exception_message or "Bad Twitter account.")
+        super().__init__(exception_message)
+
+
+class BadToken(BadAccount):
+    def __init__(self, http_exception: "HTTPException", account: Account):
+        exception_message = "Bad Twitter account's auth_token."
+        super().__init__(http_exception, account, exception_message)
+
+
+class Locked(BadAccount):
+    def __init__(self, http_exception: "HTTPException", account: Account):
+        exception_message = (f"Twitter account is locked."
+                             f" Set CapSolver API key (capsolver_api_key) to autounlock.")
+        super().__init__(http_exception, account, exception_message)
+
+
+class ConsentLocked(BadAccount):
+    def __init__(self, http_exception: "HTTPException", account: Account):
+        exception_message = f"Twitter account is consent locked. Relogin to unlock."
+        super().__init__(http_exception, account, exception_message)
+
+
+class Suspended(BadAccount):
+    def __init__(self, http_exception: "HTTPException", account: Account):
+        exception_message = f"Twitter account is suspended."
+        super().__init__(http_exception, account, exception_message)
