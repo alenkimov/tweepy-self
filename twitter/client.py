@@ -1099,8 +1099,10 @@ class Client(BaseClient):
 
     async def _login(self):
         guest_token = await self._request_guest_token()
-        self._session.cookies["gt"] = guest_token
         self._session.headers["X-Guest-Token"] = guest_token
+
+        # Можно не устанавливать, так как твиттер сам вернет этот токен
+        # self._session.cookies["gt"] = guest_token
 
         flow_token, subtasks = await self._request_login_tasks()
         for _ in range(2):
