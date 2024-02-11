@@ -37,7 +37,7 @@ class Client(BaseClient):
         'authority': 'twitter.com',
         'origin': 'https://twitter.com',
         'x-twitter-active-user': 'yes',
-        'x-twitter-auth-type': 'OAuth2Session',
+        # 'x-twitter-auth-type': 'OAuth2Session',
         'x-twitter-client-language': 'en',
     }
     _GRAPHQL_URL = 'https://twitter.com/i/api/graphql'
