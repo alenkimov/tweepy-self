@@ -9,6 +9,7 @@ class BaseAsyncSession(requests.AsyncSession):
         - По умолчанию устанавливает версию браузера chrome120.
         - По умолчанию устанавливает user-agent под версию браузера chrome120.
     """
+
     proxy: Proxy | None
     DEFAULT_HEADERS = {
         "accept": "*/*",
@@ -25,14 +26,16 @@ class BaseAsyncSession(requests.AsyncSession):
     DEFAULT_IMPERSONATE = requests.BrowserType.chrome120
 
     def __init__(
-            self,
-            proxy: str | Proxy = None,
-            **session_kwargs,
+        self,
+        proxy: str | Proxy = None,
+        **session_kwargs,
     ):
         self._proxy = None
         headers = session_kwargs["headers"] = session_kwargs.get("headers") or {}
         headers.update(self.DEFAULT_HEADERS)
-        session_kwargs["impersonate"] = session_kwargs.get("impersonate") or self.DEFAULT_IMPERSONATE
+        session_kwargs["impersonate"] = (
+            session_kwargs.get("impersonate") or self.DEFAULT_IMPERSONATE
+        )
         super().__init__(**session_kwargs)
         self.proxy = proxy
 

@@ -32,33 +32,33 @@ from .utils import remove_at_sign, parse_oauth_html, parse_unlock_html
 
 
 class Client(BaseClient):
-    _BEARER_TOKEN = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
+    _BEARER_TOKEN = "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
     _DEFAULT_HEADERS = {
-        'authority': 'twitter.com',
-        'origin': 'https://twitter.com',
-        'x-twitter-active-user': 'yes',
+        "authority": "twitter.com",
+        "origin": "https://twitter.com",
+        "x-twitter-active-user": "yes",
         # 'x-twitter-auth-type': 'OAuth2Session',
-        'x-twitter-client-language': 'en',
+        "x-twitter-client-language": "en",
     }
-    _GRAPHQL_URL = 'https://twitter.com/i/api/graphql'
+    _GRAPHQL_URL = "https://twitter.com/i/api/graphql"
     _ACTION_TO_QUERY_ID = {
-        'CreateRetweet': "ojPdsZsimiJrUGLR1sjUtA",
-        'FavoriteTweet': "lI07N6Otwv1PhnEgXILM7A",
-        'UnfavoriteTweet': "ZYKSe-w7KEslx3JhSIk5LA",
-        'CreateTweet': "SoVnbfCycZ7fERGCwpZkYA",
-        'TweetResultByRestId': "V3vfsYzNEyD9tsf4xoFRgw",
-        'ModerateTweet': "p'jF:GVqCjTcZol0xcBJjw",
-        'DeleteTweet': "VaenaVgh5q5ih7kvyVjgtg",
-        'UserTweets': "V1ze5q3ijDS1VeLwLY0m7g",
-        'TweetDetail': 'VWFGPVAGkZMGRKGe3GFFnA',
-        'ProfileSpotlightsQuery': '9zwVLJ48lmVUk8u_Gh9DmA',
-        'Following': 't-BPOrMIduGUJWO_LxcvNQ',
-        'Followers': '3yX7xr2hKjcZYnXt6cU6lQ',
-        'UserByScreenName': 'G3KGOASz96M-Qu0nwmGXNg',
-        'Viewer': 'W62NnYgkgziw9bwyoVht0g',
+        "CreateRetweet": "ojPdsZsimiJrUGLR1sjUtA",
+        "FavoriteTweet": "lI07N6Otwv1PhnEgXILM7A",
+        "UnfavoriteTweet": "ZYKSe-w7KEslx3JhSIk5LA",
+        "CreateTweet": "SoVnbfCycZ7fERGCwpZkYA",
+        "TweetResultByRestId": "V3vfsYzNEyD9tsf4xoFRgw",
+        "ModerateTweet": "p'jF:GVqCjTcZol0xcBJjw",
+        "DeleteTweet": "VaenaVgh5q5ih7kvyVjgtg",
+        "UserTweets": "V1ze5q3ijDS1VeLwLY0m7g",
+        "TweetDetail": "VWFGPVAGkZMGRKGe3GFFnA",
+        "ProfileSpotlightsQuery": "9zwVLJ48lmVUk8u_Gh9DmA",
+        "Following": "t-BPOrMIduGUJWO_LxcvNQ",
+        "Followers": "3yX7xr2hKjcZYnXt6cU6lQ",
+        "UserByScreenName": "G3KGOASz96M-Qu0nwmGXNg",
+        "Viewer": "W62NnYgkgziw9bwyoVht0g",
     }
-    _CAPTCHA_URL = 'https://twitter.com/account/access'
-    _CAPTCHA_SITE_KEY = '0152B4EB-D2DC-460A-89A1-629838B529C9'
+    _CAPTCHA_URL = "https://twitter.com/account/access"
+    _CAPTCHA_SITE_KEY = "0152B4EB-D2DC-460A-89A1-629838B529C9"
 
     @classmethod
     def _action_to_url(cls, action: str) -> tuple[str, str]:
@@ -70,13 +70,13 @@ class Client(BaseClient):
         return url, query_id
 
     def __init__(
-            self,
-            account: Account,
-            *,
-            wait_on_rate_limit: bool = True,
-            capsolver_api_key: str = None,
-            max_unlock_attempts: int = 4,
-            **session_kwargs,
+        self,
+        account: Account,
+        *,
+        wait_on_rate_limit: bool = True,
+        capsolver_api_key: str = None,
+        max_unlock_attempts: int = 4,
+        **session_kwargs,
     ):
         super().__init__(**session_kwargs)
         self.account = account
@@ -85,12 +85,12 @@ class Client(BaseClient):
         self.max_unlock_attempts = max_unlock_attempts
 
     async def request(
-            self,
-            method,
-            url,
-            auth: bool = True,
-            bearer: bool = True,
-            **kwargs,
+        self,
+        method,
+        url,
+        auth: bool = True,
+        bearer: bool = True,
+        **kwargs,
     ) -> tuple[requests.Response, Any]:
         cookies = kwargs["cookies"] = kwargs.get("cookies") or {}
         headers = kwargs["headers"] = kwargs.get("headers") or {}
@@ -111,12 +111,15 @@ class Client(BaseClient):
             response = await self._session.request(method, url, **kwargs)
         except requests.errors.RequestsError as exc:
             if exc.code == 35:
-                msg = "The IP address may have been blocked by Twitter. Blocked countries: Russia. " + str(exc)
+                msg = (
+                    "The IP address may have been blocked by Twitter. Blocked countries: Russia. "
+                    + str(exc)
+                )
                 raise requests.errors.RequestsError(msg, 35, exc.response)
             raise
 
         data = response.text
-        if response.headers['content-type'].startswith('application/json'):
+        if response.headers["content-type"].startswith("application/json"):
             data = response.json()
 
         if response.status_code == 429:
@@ -153,8 +156,10 @@ class Client(BaseClient):
 
             if 326 in exc.api_codes:
                 for error_data in exc.api_errors:
-                    if (error_data.get("code") == 326 and
-                            error_data.get("bounce_location") == "/i/flow/consent_flow"):
+                    if (
+                        error_data.get("code") == 326
+                        and error_data.get("bounce_location") == "/i/flow/consent_flow"
+                    ):
                         self.account.status = AccountStatus.CONSENT_LOCKED
                         raise ConsentLocked(exc, self.account)
 
@@ -185,8 +190,10 @@ class Client(BaseClient):
 
             if 326 in exc.api_codes:
                 for error_data in exc.api_errors:
-                    if (error_data.get("code") == 326 and
-                            error_data.get("bounce_location") == "/i/flow/consent_flow"):
+                    if (
+                        error_data.get("code") == 326
+                        and error_data.get("bounce_location") == "/i/flow/consent_flow"
+                    ):
                         self.account.status = AccountStatus.CONSENT_LOCKED
                         raise ConsentLocked(exc, self.account)
 
@@ -203,14 +210,14 @@ class Client(BaseClient):
         return response, data
 
     async def _request_oauth_2_auth_code(
-            self,
-            client_id: str,
-            code_challenge: str,
-            state: str,
-            redirect_uri: str,
-            code_challenge_method: str,
-            scope: str,
-            response_type: str,
+        self,
+        client_id: str,
+        code_challenge: str,
+        state: str,
+        redirect_uri: str,
+        code_challenge_method: str,
+        scope: str,
+        response_type: str,
     ) -> str:
         url = "https://twitter.com/i/api/2/oauth2/authorize"
         querystring = {
@@ -228,21 +235,26 @@ class Client(BaseClient):
 
     async def _confirm_oauth_2(self, auth_code: str):
         data = {
-            'approval': 'true',
-            'code': auth_code,
+            "approval": "true",
+            "code": auth_code,
         }
-        headers = {'content-type': 'application/x-www-form-urlencoded'}
-        await self.request("POST", 'https://twitter.com/i/api/2/oauth2/authorize', headers=headers, data=data)
+        headers = {"content-type": "application/x-www-form-urlencoded"}
+        await self.request(
+            "POST",
+            "https://twitter.com/i/api/2/oauth2/authorize",
+            headers=headers,
+            data=data,
+        )
 
     async def oauth_2(
-            self,
-            client_id: str,
-            code_challenge: str,
-            state: str,
-            redirect_uri: str,
-            code_challenge_method: str,
-            scope: str,
-            response_type: str,
+        self,
+        client_id: str,
+        code_challenge: str,
+        state: str,
+        redirect_uri: str,
+        code_challenge_method: str,
+        scope: str,
+        response_type: str,
     ):
         """
         Запрашивает код авторизации для OAuth 2.0 авторизации.
@@ -259,7 +271,13 @@ class Client(BaseClient):
         :return: Код авторизации (привязки).
         """
         auth_code = await self._request_oauth_2_auth_code(
-            client_id, code_challenge, state, redirect_uri, code_challenge_method, scope, response_type,
+            client_id,
+            code_challenge,
+            state,
+            redirect_uri,
+            code_challenge_method,
+            scope,
+            response_type,
         )
         await self._confirm_oauth_2(auth_code)
         return auth_code
@@ -274,16 +292,18 @@ class Client(BaseClient):
         response, _ = await self.request("GET", url, params=oauth_params)
 
         if response.status_code == 403:
-            raise ValueError("The request token (oauth_token) for this page is invalid."
-                             " It may have already been used, or expired because it is too old.")
+            raise ValueError(
+                "The request token (oauth_token) for this page is invalid."
+                " It may have already been used, or expired because it is too old."
+            )
 
         return response
 
     async def _confirm_oauth(
-            self,
-            oauth_token: str,
-            authenticity_token: str,
-            redirect_after_login_url: str,
+        self,
+        oauth_token: str,
+        authenticity_token: str,
+        redirect_after_login_url: str,
     ) -> requests.Response:
         url = "https://api.twitter.com/oauth/authorize"
         params = {
@@ -299,12 +319,18 @@ class Client(BaseClient):
         :return: authenticity_token, redirect_url
         """
         response = await self._oauth(oauth_token, **oauth_params)
-        authenticity_token, redirect_url, redirect_after_login_url = parse_oauth_html(response.text)
+        authenticity_token, redirect_url, redirect_after_login_url = parse_oauth_html(
+            response.text
+        )
 
         # Первая привязка требует подтверждения
         if redirect_after_login_url:
-            response = await self._confirm_oauth(oauth_token, authenticity_token, redirect_after_login_url)
-            authenticity_token, redirect_url, redirect_after_login_url = parse_oauth_html(response.text)
+            response = await self._confirm_oauth(
+                oauth_token, authenticity_token, redirect_after_login_url
+            )
+            authenticity_token, redirect_url, redirect_after_login_url = (
+                parse_oauth_html(response.text)
+            )
 
         return authenticity_token, redirect_url
 
@@ -373,25 +399,27 @@ class Client(BaseClient):
     async def _follow_action(self, action: str, user_id: int | str) -> bool:
         url = f"https://twitter.com/i/api/1.1/friendships/{action}.json"
         params = {
-            'include_profile_interstitial_type': '1',
-            'include_blocking': '1',
-            'include_blocked_by': '1',
-            'include_followed_by': '1',
-            'include_want_retweets': '1',
-            'include_mute_edge': '1',
-            'include_can_dm': '1',
-            'include_can_media_tag': '1',
-            'include_ext_has_nft_avatar': '1',
-            'include_ext_is_blue_verified': '1',
-            'include_ext_verified_type': '1',
-            'include_ext_profile_image_shape': '1',
-            'skip_status': '1',
-            'user_id': user_id,
+            "include_profile_interstitial_type": "1",
+            "include_blocking": "1",
+            "include_blocked_by": "1",
+            "include_followed_by": "1",
+            "include_want_retweets": "1",
+            "include_mute_edge": "1",
+            "include_can_dm": "1",
+            "include_can_media_tag": "1",
+            "include_ext_has_nft_avatar": "1",
+            "include_ext_is_blue_verified": "1",
+            "include_ext_verified_type": "1",
+            "include_ext_profile_image_shape": "1",
+            "skip_status": "1",
+            "user_id": user_id,
         }
         headers = {
-            'content-type': 'application/x-www-form-urlencoded',
+            "content-type": "application/x-www-form-urlencoded",
         }
-        response, response_json = await self.request("POST", url, params=params, headers=headers)
+        response, response_json = await self.request(
+            "POST", url, params=params, headers=headers
+        )
         return bool(response_json)
 
     async def follow(self, user_id: str | int) -> bool:
@@ -403,11 +431,8 @@ class Client(BaseClient):
     async def _interact_with_tweet(self, action: str, tweet_id: int) -> dict:
         url, query_id = self._action_to_url(action)
         json_payload = {
-            'variables': {
-                'tweet_id': tweet_id,
-                'dark_request': False
-            },
-            'queryId': query_id
+            "variables": {"tweet_id": tweet_id, "dark_request": False},
+            "queryId": query_id,
         }
         response, response_json = await self.request("POST", url, json=json_payload)
         return response_json
@@ -418,98 +443,109 @@ class Client(BaseClient):
 
         :return: Tweet ID
         """
-        response_json = await self._interact_with_tweet('CreateRetweet', tweet_id)
-        retweet_id = int(response_json['data']['create_retweet']['retweet_results']['result']['rest_id'])
+        response_json = await self._interact_with_tweet("CreateRetweet", tweet_id)
+        retweet_id = int(
+            response_json["data"]["create_retweet"]["retweet_results"]["result"][
+                "rest_id"
+            ]
+        )
         return retweet_id
 
     async def like(self, tweet_id: int) -> bool:
-        response_json = await self._interact_with_tweet('FavoriteTweet', tweet_id)
-        is_liked = response_json['data']['favorite_tweet'] == 'Done'
+        response_json = await self._interact_with_tweet("FavoriteTweet", tweet_id)
+        is_liked = response_json["data"]["favorite_tweet"] == "Done"
         return is_liked
 
     async def unlike(self, tweet_id: int) -> dict:
-        response_json = await self._interact_with_tweet('UnfavoriteTweet', tweet_id)
-        is_unliked = 'data' in response_json and response_json['data']['unfavorite_tweet'] == 'Done'
+        response_json = await self._interact_with_tweet("UnfavoriteTweet", tweet_id)
+        is_unliked = (
+            "data" in response_json
+            and response_json["data"]["unfavorite_tweet"] == "Done"
+        )
         return is_unliked
 
     async def delete_tweet(self, tweet_id: int | str) -> bool:
-        url, query_id = self._action_to_url('DeleteTweet')
+        url, query_id = self._action_to_url("DeleteTweet")
         json_payload = {
-            'variables': {
-                'tweet_id': tweet_id,
-                'dark_request': False,
+            "variables": {
+                "tweet_id": tweet_id,
+                "dark_request": False,
             },
-            'queryId': query_id,
+            "queryId": query_id,
         }
         response, response_json = await self.request("POST", url, json=json_payload)
         is_deleted = "data" in response_json and "delete_tweet" in response_json["data"]
         return is_deleted
 
     async def pin_tweet(self, tweet_id: str | int) -> bool:
-        url = 'https://api.twitter.com/1.1/account/pin_tweet.json'
+        url = "https://api.twitter.com/1.1/account/pin_tweet.json"
         data = {
-            'tweet_mode': 'extended',
-            'id': str(tweet_id),
+            "tweet_mode": "extended",
+            "id": str(tweet_id),
         }
         headers = {
-            'content-type': 'application/x-www-form-urlencoded',
+            "content-type": "application/x-www-form-urlencoded",
         }
-        response, response_json = await self.request("POST", url, headers=headers, data=data)
+        response, response_json = await self.request(
+            "POST", url, headers=headers, data=data
+        )
         is_pinned = bool(response_json["pinned_tweets"])
         return is_pinned
 
     async def _tweet(
-            self,
-            text: str = None,
-            *,
-            media_id: int | str = None,
-            tweet_id_to_reply: str | int = None,
-            attachment_url: str = None,
+        self,
+        text: str = None,
+        *,
+        media_id: int | str = None,
+        tweet_id_to_reply: str | int = None,
+        attachment_url: str = None,
     ) -> int:
-        url, query_id = self._action_to_url('CreateTweet')
+        url, query_id = self._action_to_url("CreateTweet")
         payload = {
-            'variables': {
-                'tweet_text': text if text is not None else "",
-                'dark_request': False,
-                'media': {
-                    'media_entities': [],
-                    'possibly_sensitive': False},
-                'semantic_annotation_ids': [],
+            "variables": {
+                "tweet_text": text if text is not None else "",
+                "dark_request": False,
+                "media": {"media_entities": [], "possibly_sensitive": False},
+                "semantic_annotation_ids": [],
             },
-            'features': {
-                'tweetypie_unmention_optimization_enabled': True,
-                'responsive_web_edit_tweet_api_enabled': True,
-                'graphql_is_translatable_rweb_tweet_is_translatable_enabled': True,
-                'view_counts_everywhere_api_enabled': True,
-                'longform_notetweets_consumption_enabled': True,
-                'tweet_awards_web_tipping_enabled': False,
-                'longform_notetweets_rich_text_read_enabled': True,
-                'longform_notetweets_inline_media_enabled': True,
-                'responsive_web_graphql_exclude_directive_enabled': True,
-                'verified_phone_label_enabled': False,
-                'freedom_of_speech_not_reach_fetch_enabled': True,
-                'standardized_nudges_misinfo': True,
-                'tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled': False,
-                'responsive_web_graphql_skip_user_profile_image_extensions_enabled': False,
-                'responsive_web_graphql_timeline_navigation_enabled': True,
-                'responsive_web_enhance_cards_enabled': False,
-                'responsive_web_twitter_article_tweet_consumption_enabled': False,
-                'responsive_web_media_download_video_enabled': False
+            "features": {
+                "tweetypie_unmention_optimization_enabled": True,
+                "responsive_web_edit_tweet_api_enabled": True,
+                "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
+                "view_counts_everywhere_api_enabled": True,
+                "longform_notetweets_consumption_enabled": True,
+                "tweet_awards_web_tipping_enabled": False,
+                "longform_notetweets_rich_text_read_enabled": True,
+                "longform_notetweets_inline_media_enabled": True,
+                "responsive_web_graphql_exclude_directive_enabled": True,
+                "verified_phone_label_enabled": False,
+                "freedom_of_speech_not_reach_fetch_enabled": True,
+                "standardized_nudges_misinfo": True,
+                "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": False,
+                "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+                "responsive_web_graphql_timeline_navigation_enabled": True,
+                "responsive_web_enhance_cards_enabled": False,
+                "responsive_web_twitter_article_tweet_consumption_enabled": False,
+                "responsive_web_media_download_video_enabled": False,
             },
-            'queryId': query_id,
+            "queryId": query_id,
         }
         if attachment_url:
-            payload['variables']['attachment_url'] = attachment_url
+            payload["variables"]["attachment_url"] = attachment_url
         if tweet_id_to_reply:
-            payload['variables']['reply'] = {
-                'in_reply_to_tweet_id': str(tweet_id_to_reply),
-                'exclude_reply_user_ids': [],
+            payload["variables"]["reply"] = {
+                "in_reply_to_tweet_id": str(tweet_id_to_reply),
+                "exclude_reply_user_ids": [],
             }
         if media_id:
-            payload['variables']['media']['media_entities'].append({'media_id': str(media_id), 'tagged_users': []})
+            payload["variables"]["media"]["media_entities"].append(
+                {"media_id": str(media_id), "tagged_users": []}
+            )
 
         response, response_json = await self.request("POST", url, json=payload)
-        tweet_id = response_json['data']['create_tweet']['tweet_results']['result']['rest_id']
+        tweet_id = response_json["data"]["create_tweet"]["tweet_results"]["result"][
+            "rest_id"
+        ]
         return tweet_id
 
     async def tweet(self, text: str, *, media_id: int | str = None) -> int:
@@ -518,19 +554,25 @@ class Client(BaseClient):
         """
         return await self._tweet(text, media_id=media_id)
 
-    async def reply(self, tweet_id: str | int, text: str, *, media_id: int | str = None) -> int:
+    async def reply(
+        self, tweet_id: str | int, text: str, *, media_id: int | str = None
+    ) -> int:
         """
         :return: Tweet ID
         """
         return await self._tweet(text, media_id=media_id, tweet_id_to_reply=tweet_id)
 
-    async def quote(self, tweet_url: str, text: str, *, media_id: int | str = None) -> int:
+    async def quote(
+        self, tweet_url: str, text: str, *, media_id: int | str = None
+    ) -> int:
         """
         :return: Tweet ID
         """
         return await self._tweet(text, media_id=media_id, attachment_url=tweet_url)
 
-    async def vote(self, tweet_id: int | str, card_id: int | str, choice_number: int) -> dict:
+    async def vote(
+        self, tweet_id: int | str, card_id: int | str, choice_number: int
+    ) -> dict:
         """
         :return: Raw vote information
         """
@@ -545,12 +587,14 @@ class Client(BaseClient):
         response, response_json = await self.request("POST", url, params=params)
         return response_json
 
-    async def _request_users(self, action: str, user_id: int | str, count: int) -> list[UserData]:
+    async def _request_users(
+        self, action: str, user_id: int | str, count: int
+    ) -> list[UserData]:
         url, query_id = self._action_to_url(action)
         variables = {
-            'userId': str(user_id),
-            'count': count,
-            'includePromotedContent': False,
+            "userId": str(user_id),
+            "count": count,
+            "includePromotedContent": False,
         }
         features = {
             "rweb_lists_timeline_redesign_enabled": True,
@@ -572,49 +616,57 @@ class Client(BaseClient):
             "longform_notetweets_rich_text_read_enabled": True,
             "longform_notetweets_inline_media_enabled": True,
             "responsive_web_media_download_video_enabled": False,
-            "responsive_web_enhance_cards_enabled": False
+            "responsive_web_enhance_cards_enabled": False,
         }
         params = {
-            'variables': to_json(variables),
-            'features': to_json(features),
+            "variables": to_json(variables),
+            "features": to_json(features),
         }
         response, response_json = await self.request("GET", url, params=params)
 
         users = []
-        if 'result' in response_json['data']['user']:
-            entries = response_json['data']['user']['result']['timeline']['timeline']['instructions'][-1]['entries']
+        if "result" in response_json["data"]["user"]:
+            entries = response_json["data"]["user"]["result"]["timeline"]["timeline"][
+                "instructions"
+            ][-1]["entries"]
             for entry in entries:
-                if entry['entryId'].startswith('user'):
-                    user_data_dict = entry["content"]["itemContent"]["user_results"]["result"]
+                if entry["entryId"].startswith("user"):
+                    user_data_dict = entry["content"]["itemContent"]["user_results"][
+                        "result"
+                    ]
                     users.append(UserData.from_raw_user_data(user_data_dict))
         return users
 
-    async def request_followers(self, user_id: int | str = None, count: int = 10) -> list[UserData]:
+    async def request_followers(
+        self, user_id: int | str = None, count: int = 10
+    ) -> list[UserData]:
         """
         :param user_id: Текущий пользователь, если не передан ID иного пользователя.
         :param count: Количество подписчиков.
         """
         if user_id:
-            return await self._request_users('Followers', user_id, count)
+            return await self._request_users("Followers", user_id, count)
         else:
             if not self.account.id:
                 await self.request_user_data()
-            return await self._request_users('Followers', self.account.id, count)
+            return await self._request_users("Followers", self.account.id, count)
 
-    async def request_followings(self, user_id: int | str = None, count: int = 10) -> list[UserData]:
+    async def request_followings(
+        self, user_id: int | str = None, count: int = 10
+    ) -> list[UserData]:
         """
         :param user_id: Текущий пользователь, если не передан ID иного пользователя.
         :param count: Количество подписчиков.
         """
         if user_id:
-            return await self._request_users('Following', user_id, count)
+            return await self._request_users("Following", user_id, count)
         else:
             if not self.account.id:
                 await self.request_user_data()
-            return await self._request_users('Following', self.account.id, count)
+            return await self._request_users("Following", self.account.id, count)
 
     async def _request_tweet_data(self, tweet_id: int) -> dict:
-        action = 'TweetDetail'
+        action = "TweetDetail"
         url, query_id = self._action_to_url(action)
         variables = {
             "focalTweetId": str(tweet_id),
@@ -647,33 +699,35 @@ class Client(BaseClient):
             "responsive_web_enhance_cards_enabled": False,
         }
         params = {
-            'variables': to_json(variables),
-            'features': to_json(features),
+            "variables": to_json(variables),
+            "features": to_json(features),
         }
         response, response_json = await self.request("GET", url, params=params)
         return response_json
 
-    async def _update_profile_image(self, type: Literal["banner", "image"], media_id: str | int) -> str:
+    async def _update_profile_image(
+        self, type: Literal["banner", "image"], media_id: str | int
+    ) -> str:
         """
         :return: Image URL
         """
         url = f"https://api.twitter.com/1.1/account/update_profile_{type}.json"
         params = {
-            'media_id': str(media_id),
-            'include_profile_interstitial_type': '1',
-            'include_blocking': '1',
-            'include_blocked_by': '1',
-            'include_followed_by': '1',
-            'include_want_retweets': '1',
-            'include_mute_edge': '1',
-            'include_can_dm': '1',
-            'include_can_media_tag': '1',
-            'include_ext_has_nft_avatar': '1',
-            'include_ext_is_blue_verified': '1',
-            'include_ext_verified_type': '1',
-            'include_ext_profile_image_shape': '1',
-            'skip_status': '1',
-            'return_user': 'true',
+            "media_id": str(media_id),
+            "include_profile_interstitial_type": "1",
+            "include_blocking": "1",
+            "include_blocked_by": "1",
+            "include_followed_by": "1",
+            "include_want_retweets": "1",
+            "include_mute_edge": "1",
+            "include_can_dm": "1",
+            "include_can_media_tag": "1",
+            "include_ext_has_nft_avatar": "1",
+            "include_ext_is_blue_verified": "1",
+            "include_ext_verified_type": "1",
+            "include_ext_profile_image_shape": "1",
+            "skip_status": "1",
+            "return_user": "true",
         }
         response, response_json = await self.request("POST", url, params=params)
         image_url = response_json[f"profile_{type}_url"]
@@ -711,7 +765,7 @@ class Client(BaseClient):
         data = {
             "current_password": self.account.password,
             "password": password,
-            "password_confirmation": password
+            "password_confirmation": password,
         }
         response, response_json = await self.request("POST", url, data=data)
         is_changed = response_json["status"] == "ok"
@@ -721,11 +775,11 @@ class Client(BaseClient):
         return is_changed
 
     async def update_profile(
-            self,
-            name: str = None,
-            description: str = None,
-            location: str = None,
-            website: str = None,
+        self,
+        name: str = None,
+        description: str = None,
+        location: str = None,
+        website: str = None,
     ) -> bool:
         """
         Locks an account!
@@ -736,16 +790,29 @@ class Client(BaseClient):
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
         headers = {"content-type": "application/x-www-form-urlencoded"}
         # Создаем словарь data, включая в него только те ключи, для которых значения не равны None
-        data = {k: v for k, v in [
-            ("name", name),
-            ("description", description),
-            ("location", location),
-            ("url", website),
-        ] if v is not None}
-        response, response_json = await self.request("POST", url, headers=headers, data=data)
+        data = {
+            k: v
+            for k, v in [
+                ("name", name),
+                ("description", description),
+                ("location", location),
+                ("url", website),
+            ]
+            if v is not None
+        }
+        response, response_json = await self.request(
+            "POST", url, headers=headers, data=data
+        )
         # Проверяем, что все переданные параметры соответствуют полученным
-        is_updated = all(response_json.get(key) == value for key, value in data.items() if key != "url")
-        if website: is_updated &= URL(website) == URL(response_json["entities"]["url"]["urls"][0]["expanded_url"])
+        is_updated = all(
+            response_json.get(key) == value
+            for key, value in data.items()
+            if key != "url"
+        )
+        if website:
+            is_updated &= URL(website) == URL(
+                response_json["entities"]["url"]["urls"][0]["expanded_url"]
+            )
         await self.request_user_data()
         return is_updated
 
@@ -757,12 +824,12 @@ class Client(BaseClient):
             pass
 
     async def update_birthdate(
-            self,
-            day: int,
-            month: int,
-            year: int,
-            visibility: Literal["self", "mutualfollow"] = "self",
-            year_visibility: Literal["self"] = "self",
+        self,
+        day: int,
+        month: int,
+        year: int,
+        visibility: Literal["self", "mutualfollow"] = "self",
+        year_visibility: Literal["self"] = "self",
     ) -> bool:
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
         headers = {"content-type": "application/x-www-form-urlencoded"}
@@ -773,15 +840,19 @@ class Client(BaseClient):
             "birthdate_visibility": visibility,
             "birthdate_year_visibility": year_visibility,
         }
-        response, response_json = await self.request("POST", url, headers=headers, data=data)
+        response, response_json = await self.request(
+            "POST", url, headers=headers, data=data
+        )
         birthdate_data = response_json["extended_profile"]["birthdate"]
-        is_updated = all((
-            birthdate_data["day"] == day,
-            birthdate_data["month"] == month,
-            birthdate_data["year"] == year,
-            birthdate_data["visibility"] == visibility,
-            birthdate_data["year_visibility"] == year_visibility,
-        ))
+        is_updated = all(
+            (
+                birthdate_data["day"] == day,
+                birthdate_data["month"] == month,
+                birthdate_data["year"] == year,
+                birthdate_data["visibility"] == visibility,
+                birthdate_data["year_visibility"] == year_visibility,
+            )
+        )
         return is_updated
 
     async def send_message(self, user_id: int | str, text: str) -> dict:
@@ -789,15 +860,15 @@ class Client(BaseClient):
         :return: Event data
         """
         url = "https://api.twitter.com/1.1/direct_messages/events/new.json"
-        payload = {"event": {
-            "type": "message_create",
-            "message_create": {
-                "target": {
-                    "recipient_id": user_id
-                }, "message_data": {
-                    "text": text}
+        payload = {
+            "event": {
+                "type": "message_create",
+                "message_create": {
+                    "target": {"recipient_id": user_id},
+                    "message_data": {"text": text},
+                },
             }
-        }}
+        }
         response, response_json = await self.request("POST", url, json=payload)
         event_data = response_json["event"]
         return event_data
@@ -806,45 +877,49 @@ class Client(BaseClient):
         """
         :return: Messages data
         """
-        url = 'https://twitter.com/i/api/1.1/dm/inbox_initial_state.json'
+        url = "https://twitter.com/i/api/1.1/dm/inbox_initial_state.json"
         params = {
-            'nsfw_filtering_enabled': 'false',
-            'filter_low_quality': 'false',
-            'include_quality': 'all',
-            'include_profile_interstitial_type': '1',
-            'include_blocking': '1',
-            'include_blocked_by': '1',
-            'include_followed_by': '1',
-            'include_want_retweets': '1',
-            'include_mute_edge': '1',
-            'include_can_dm': '1',
-            'include_can_media_tag': '1',
-            'include_ext_has_nft_avatar': '1',
-            'include_ext_is_blue_verified': '1',
-            'include_ext_verified_type': '1',
-            'include_ext_profile_image_shape': '1',
-            'skip_status': '1',
-            'dm_secret_conversations_enabled': 'false',
-            'krs_registration_enabled': 'true',
-            'cards_platform': 'Web-12',
-            'include_cards': '1',
-            'include_ext_alt_text': 'true',
-            'include_ext_limited_action_results': 'true',
-            'include_quote_count': 'true',
-            'include_reply_count': '1',
-            'tweet_mode': 'extended',
-            'include_ext_views': 'true',
-            'dm_users': 'true',
-            'include_groups': 'true',
-            'include_inbox_timelines': 'true',
-            'include_ext_media_color': 'true',
-            'supports_reactions': 'true',
-            'include_ext_edit_control': 'true',
-            'include_ext_business_affiliations_label': 'true',
-            'ext': 'mediaColor,altText,mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,superFollowMetadata,unmentionInfo,editControl',
+            "nsfw_filtering_enabled": "false",
+            "filter_low_quality": "false",
+            "include_quality": "all",
+            "include_profile_interstitial_type": "1",
+            "include_blocking": "1",
+            "include_blocked_by": "1",
+            "include_followed_by": "1",
+            "include_want_retweets": "1",
+            "include_mute_edge": "1",
+            "include_can_dm": "1",
+            "include_can_media_tag": "1",
+            "include_ext_has_nft_avatar": "1",
+            "include_ext_is_blue_verified": "1",
+            "include_ext_verified_type": "1",
+            "include_ext_profile_image_shape": "1",
+            "skip_status": "1",
+            "dm_secret_conversations_enabled": "false",
+            "krs_registration_enabled": "true",
+            "cards_platform": "Web-12",
+            "include_cards": "1",
+            "include_ext_alt_text": "true",
+            "include_ext_limited_action_results": "true",
+            "include_quote_count": "true",
+            "include_reply_count": "1",
+            "tweet_mode": "extended",
+            "include_ext_views": "true",
+            "dm_users": "true",
+            "include_groups": "true",
+            "include_inbox_timelines": "true",
+            "include_ext_media_color": "true",
+            "supports_reactions": "true",
+            "include_ext_edit_control": "true",
+            "include_ext_business_affiliations_label": "true",
+            "ext": "mediaColor,altText,mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,superFollowMetadata,unmentionInfo,editControl",
         }
         response, response_json = await self.request("GET", url, params=params)
-        messages = [entry["message"] for entry in response_json["inbox_initial_state"]["entries"] if "message" in entry]
+        messages = [
+            entry["message"]
+            for entry in response_json["inbox_initial_state"]["entries"]
+            if "message" in entry
+        ]
         return messages
 
     async def request_tweets(self, user_id: str | int, count: int = 20) -> list[Tweet]:
@@ -855,7 +930,7 @@ class Client(BaseClient):
             "includePromotedContent": True,
             "withQuickPromoteEligibilityTweetFields": True,
             "withVoice": True,
-            "withV2Timeline": True
+            "withV2Timeline": True,
         }
         features = {
             "responsive_web_graphql_exclude_directive_enabled": True,
@@ -878,28 +953,29 @@ class Client(BaseClient):
             "longform_notetweets_rich_text_read_enabled": True,
             "longform_notetweets_inline_media_enabled": True,
             "responsive_web_media_download_video_enabled": False,
-            "responsive_web_enhance_cards_enabled": False
+            "responsive_web_enhance_cards_enabled": False,
         }
-        params = {
-            'variables': to_json(variables),
-            'features': to_json(features)
-        }
+        params = {"variables": to_json(variables), "features": to_json(features)}
         response, response_json = await self.request("GET", url, params=params)
 
         tweets = []
-        for instruction in response_json['data']['user']['result']['timeline_v2']['timeline']['instructions']:
-            if instruction['type'] == 'TimelineAddEntries':
-                for entry in instruction['entries']:
-                    if entry['entryId'].startswith('tweet'):
-                        tweet_data = entry["content"]['itemContent']['tweet_results']['result']
+        for instruction in response_json["data"]["user"]["result"]["timeline_v2"][
+            "timeline"
+        ]["instructions"]:
+            if instruction["type"] == "TimelineAddEntries":
+                for entry in instruction["entries"]:
+                    if entry["entryId"].startswith("tweet"):
+                        tweet_data = entry["content"]["itemContent"]["tweet_results"][
+                            "result"
+                        ]
                         tweets.append(Tweet.from_raw_data(tweet_data))
         return tweets
 
     async def _confirm_unlock(
-            self,
-            authenticity_token: str,
-            assignment_token: str,
-            verification_string: str = None,
+        self,
+        authenticity_token: str,
+        assignment_token: str,
+        verification_string: str = None,
     ) -> tuple[requests.Response, str]:
         payload = {
             "authenticity_token": authenticity_token,
@@ -918,11 +994,26 @@ class Client(BaseClient):
             return
 
         response, html = await self.request("GET", self._CAPTCHA_URL, bearer=False)
-        authenticity_token, assignment_token, needs_unlock, needs_press_continue_button = parse_unlock_html(html)
+        (
+            authenticity_token,
+            assignment_token,
+            needs_unlock,
+            start_button,
+            finish_button,
+        ) = parse_unlock_html(html)
         attempt = 1
 
-        if needs_press_continue_button:
-            raise TwitterException("Пока не умею так! Ждите обновление")
+        if start_button or finish_button:
+            response, html = await self._confirm_unlock(
+                authenticity_token, assignment_token
+            )
+            (
+                authenticity_token,
+                assignment_token,
+                needs_unlock,
+                start_button,
+                finish_button,
+            ) = parse_unlock_html(html)
 
         funcaptcha = {
             "api_key": self.capsolver_api_key,
@@ -942,17 +1033,38 @@ class Client(BaseClient):
         while needs_unlock:
             solution = await FunCaptcha(**funcaptcha).aio_captcha_handler()
             token = solution.solution["token"]
-            response, html = await self._confirm_unlock(authenticity_token, assignment_token,
-                                                        verification_string=token)
+            response, html = await self._confirm_unlock(
+                authenticity_token,
+                assignment_token,
+                verification_string=token,
+            )
 
-            if attempt > self.max_unlock_attempts or response.url == "https://twitter.com/?lang=en":
+            if (
+                attempt > self.max_unlock_attempts
+                or response.url == "https://twitter.com/?lang=en"
+            ):
                 await self.establish_status()
                 return
 
-            authenticity_token, assignment_token, needs_unlock, needs_press_continue_button = parse_unlock_html(html)
+            (
+                authenticity_token,
+                assignment_token,
+                needs_unlock,
+                start_button,
+                finish_button,
+            ) = parse_unlock_html(html)
 
-            if needs_press_continue_button:
-                raise TwitterException("Пока не умею так! Ждите обновление")
+            if finish_button:
+                response, html = await self._confirm_unlock(
+                    authenticity_token, assignment_token
+                )
+                (
+                    authenticity_token,
+                    assignment_token,
+                    needs_unlock,
+                    start_button,
+                    finish_button,
+                ) = parse_unlock_html(html)
 
             attempt += 1
 
@@ -960,7 +1072,7 @@ class Client(BaseClient):
         """
         :return: flow_token, subtasks
         """
-        url = 'https://api.twitter.com/1.1/onboarding/task.json'
+        url = "https://api.twitter.com/1.1/onboarding/task.json"
         response, response_json = await self.request("POST", url, **kwargs)
         return response_json["flow_token"], response_json["subtasks"]
 
@@ -975,31 +1087,63 @@ class Client(BaseClient):
             "input_flow_data": {
                 "flow_context": {
                     "debug_overrides": {},
-                    "start_location": {"location": "splash_screen"}
+                    "start_location": {"location": "splash_screen"},
                 }
             },
             "subtask_versions": {
-                "action_list": 2, "alert_dialog": 1, "app_download_cta": 1, "check_logged_in_account": 1,
-                "choice_selection": 3, "contacts_live_sync_permission_prompt": 0, "cta": 7,
-                "email_verification": 2, "end_flow": 1, "enter_date": 1, "enter_email": 2,
-                "enter_password": 5, "enter_phone": 2, "enter_recaptcha": 1, "enter_text": 5,
-                "enter_username": 2, "generic_urt": 3, "in_app_notification": 1, "interest_picker": 3,
-                "js_instrumentation": 1, "menu_dialog": 1, "notifications_permission_prompt": 2,
-                "open_account": 2, "open_home_timeline": 1, "open_link": 1, "phone_verification": 4,
-                "privacy_options": 1, "security_key": 3, "select_avatar": 4, "select_banner": 2,
-                "settings_list": 7, "show_code": 1, "sign_up": 2, "sign_up_review": 4, "tweet_selection_urt": 1,
-                "update_users": 1, "upload_media": 1, "user_recommendations_list": 4,
-                "user_recommendations_urt": 1, "wait_spinner": 3, "web_modal": 1
-            }
+                "action_list": 2,
+                "alert_dialog": 1,
+                "app_download_cta": 1,
+                "check_logged_in_account": 1,
+                "choice_selection": 3,
+                "contacts_live_sync_permission_prompt": 0,
+                "cta": 7,
+                "email_verification": 2,
+                "end_flow": 1,
+                "enter_date": 1,
+                "enter_email": 2,
+                "enter_password": 5,
+                "enter_phone": 2,
+                "enter_recaptcha": 1,
+                "enter_text": 5,
+                "enter_username": 2,
+                "generic_urt": 3,
+                "in_app_notification": 1,
+                "interest_picker": 3,
+                "js_instrumentation": 1,
+                "menu_dialog": 1,
+                "notifications_permission_prompt": 2,
+                "open_account": 2,
+                "open_home_timeline": 1,
+                "open_link": 1,
+                "phone_verification": 4,
+                "privacy_options": 1,
+                "security_key": 3,
+                "select_avatar": 4,
+                "select_banner": 2,
+                "settings_list": 7,
+                "show_code": 1,
+                "sign_up": 2,
+                "sign_up_review": 4,
+                "tweet_selection_urt": 1,
+                "update_users": 1,
+                "upload_media": 1,
+                "user_recommendations_list": 4,
+                "user_recommendations_urt": 1,
+                "wait_spinner": 3,
+                "web_modal": 1,
+            },
         }
         return await self._task(params=params, json=payload, auth=False)
 
     async def _send_task(self, flow_token: str, subtask_inputs: list[dict], **kwargs):
         payload = kwargs["json"] = kwargs.get("json") or {}
-        payload.update({
-            "flow_token": flow_token,
-            "subtask_inputs": subtask_inputs,
-        })
+        payload.update(
+            {
+                "flow_token": flow_token,
+                "subtask_inputs": subtask_inputs,
+            }
+        )
         return await self._task(**kwargs)
 
     async def _finish_task(self, flow_token):
@@ -1017,11 +1161,16 @@ class Client(BaseClient):
                     "setting_responses": [
                         {
                             "key": "user_identifier",
-                            "response_data": {"text_data": {"result": self.account.email or self.account.username}}
+                            "response_data": {
+                                "text_data": {
+                                    "result": self.account.email
+                                    or self.account.username
+                                }
+                            },
                         }
                     ],
-                    "link": "next_link"
-                }
+                    "link": "next_link",
+                },
             }
         ]
         return await self._send_task(flow_token, subtask_inputs, auth=False)
@@ -1032,8 +1181,8 @@ class Client(BaseClient):
                 "subtask_id": "LoginEnterPassword",
                 "enter_password": {
                     "password": self.account.password,
-                    "link": "next_link"
-                }
+                    "link": "next_link",
+                },
             }
         ]
         return await self._send_task(flow_token, subtask_inputs, auth=False)
@@ -1042,21 +1191,24 @@ class Client(BaseClient):
         subtask_inputs = [
             {
                 "subtask_id": "AccountDuplicationCheck",
-                "check_logged_in_account": {
-                    "link": "AccountDuplicationCheck_false"
-                }
+                "check_logged_in_account": {"link": "AccountDuplicationCheck_false"},
             }
         ]
         return await self._send_task(flow_token, subtask_inputs, auth=False)
 
     async def _login_two_factor_auth_challenge(self, flow_token):
         if not self.account.totp_secret:
-            raise TwitterException(f"Failed to login. Task id: LoginTwoFactorAuthChallenge")
+            raise TwitterException(
+                f"Failed to login. Task id: LoginTwoFactorAuthChallenge"
+            )
 
         subtask_inputs = [
             {
                 "subtask_id": "LoginTwoFactorAuthChallenge",
-                "enter_text": {"text": self.account.get_totp_code(), "link": "next_link"}
+                "enter_text": {
+                    "text": self.account.get_totp_code(),
+                    "link": "next_link",
+                },
             }
         ]
         return await self._send_task(flow_token, subtask_inputs, auth=False)
@@ -1064,15 +1216,15 @@ class Client(BaseClient):
     async def _viewer(self):
         url, query_id = self._action_to_url("Viewer")
         features = {
-            'responsive_web_graphql_exclude_directive_enabled': True,
-            'verified_phone_label_enabled': False,
-            'creator_subscriptions_tweet_preview_api_enabled': True,
-            'responsive_web_graphql_skip_user_profile_image_extensions_enabled': False,
-            'responsive_web_graphql_timeline_navigation_enabled': True,
+            "responsive_web_graphql_exclude_directive_enabled": True,
+            "verified_phone_label_enabled": False,
+            "creator_subscriptions_tweet_preview_api_enabled": True,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+            "responsive_web_graphql_timeline_navigation_enabled": True,
         }
         field_toggles = {
-            'isDelegate': False,
-            'withAuxiliaryUserLabels': False,
+            "isDelegate": False,
+            "withAuxiliaryUserLabels": False,
         }
         variables = {"withCommunitiesMemberships": True}
         params = {
@@ -1088,11 +1240,11 @@ class Client(BaseClient):
 
         :return: guest_token
         """
-        url = 'https://twitter.com'
+        url = "https://twitter.com"
         response = await self._session.request("GET", url)
         # TODO Если в сессии есть рабочий auth_token, то не вернет нужную страницу.
         #   Поэтому нужно очищать сессию перед вызовом этого метода.
-        guest_token = re.search(r'gt\s?=\s?\d+', response.text)[0].split('=')[1]
+        guest_token = re.search(r"gt\s?=\s?\d+", response.text)[0].split("=")[1]
         return guest_token
 
     async def _login(self):
@@ -1110,12 +1262,14 @@ class Client(BaseClient):
 
         subtask_ids = [subtask["subtask_id"] for subtask in subtasks]
 
-        # TODO Обработчик
+        # TODO IMAP Обработчик
         if "LoginAcid" in subtask_ids:
             raise TwitterException(f"Failed to login: email verification!")
 
         if "LoginTwoFactorAuthChallenge" in subtask_ids:
-            flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token)
+            flow_token, subtasks = await self._login_two_factor_auth_challenge(
+                flow_token
+            )
 
         # TODO Возможно, стоит добавить отслеживание этих параметров прямо в request
         self.account.auth_token = self._session.cookies["auth_token"]
@@ -1138,13 +1292,15 @@ class Client(BaseClient):
         await self._login()
         await self.establish_status()
 
-    async def is_enabled_2fa(self):
+    async def totp_is_enabled(self):
         if not self.account.id:
             await self.request_user_data()
 
-        url = f'https://twitter.com/i/api/1.1/strato/column/User/{self.account.id}/account-security/twoFactorAuthSettings2'
-        response, response_json = await self.request("GET", url)
-        return 'Totp' in [i['twoFactorType'] for i in response_json['methods']]
+        url = f"https://twitter.com/i/api/1.1/strato/column/User/{self.account.id}/account-security/twoFactorAuthSettings2"
+        response, data = await self.request("GET", url)
+        return "Totp" in [
+            method_data["twoFactorType"] for method_data in data["methods"]
+        ]
 
     async def _request_2fa_tasks(self):
         """
@@ -1154,22 +1310,55 @@ class Client(BaseClient):
             "flow_name": "two-factor-auth-app-enrollment",
         }
         payload = {
-            "input_flow_data": {"flow_context": {"debug_overrides": {}, "start_location": {"location": "settings"}}},
-            "subtask_versions": {"action_list": 2, "alert_dialog": 1, "app_download_cta": 1,
-                                 "check_logged_in_account": 1, "choice_selection": 3,
-                                 "contacts_live_sync_permission_prompt": 0, "cta": 7, "email_verification": 2,
-                                 "end_flow": 1, "enter_date": 1, "enter_email": 2,
-                                 "enter_password": 5, "enter_phone": 2, "enter_recaptcha": 1, "enter_text": 5,
-                                 "enter_username": 2, "generic_urt": 3,
-                                 "in_app_notification": 1, "interest_picker": 3, "js_instrumentation": 1,
-                                 "menu_dialog": 1, "notifications_permission_prompt": 2,
-                                 "open_account": 2, "open_home_timeline": 1, "open_link": 1, "phone_verification": 4,
-                                 "privacy_options": 1, "security_key": 3,
-                                 "select_avatar": 4, "select_banner": 2, "settings_list": 7, "show_code": 1,
-                                 "sign_up": 2, "sign_up_review": 4, "tweet_selection_urt": 1,
-                                 "update_users": 1, "upload_media": 1, "user_recommendations_list": 4,
-                                 "user_recommendations_urt": 1, "wait_spinner": 3, "web_modal": 1
-                                 }
+            "input_flow_data": {
+                "flow_context": {
+                    "debug_overrides": {},
+                    "start_location": {"location": "settings"},
+                }
+            },
+            "subtask_versions": {
+                "action_list": 2,
+                "alert_dialog": 1,
+                "app_download_cta": 1,
+                "check_logged_in_account": 1,
+                "choice_selection": 3,
+                "contacts_live_sync_permission_prompt": 0,
+                "cta": 7,
+                "email_verification": 2,
+                "end_flow": 1,
+                "enter_date": 1,
+                "enter_email": 2,
+                "enter_password": 5,
+                "enter_phone": 2,
+                "enter_recaptcha": 1,
+                "enter_text": 5,
+                "enter_username": 2,
+                "generic_urt": 3,
+                "in_app_notification": 1,
+                "interest_picker": 3,
+                "js_instrumentation": 1,
+                "menu_dialog": 1,
+                "notifications_permission_prompt": 2,
+                "open_account": 2,
+                "open_home_timeline": 1,
+                "open_link": 1,
+                "phone_verification": 4,
+                "privacy_options": 1,
+                "security_key": 3,
+                "select_avatar": 4,
+                "select_banner": 2,
+                "settings_list": 7,
+                "show_code": 1,
+                "sign_up": 2,
+                "sign_up_review": 4,
+                "tweet_selection_urt": 1,
+                "update_users": 1,
+                "upload_media": 1,
+                "user_recommendations_list": 4,
+                "user_recommendations_urt": 1,
+                "wait_spinner": 3,
+                "web_modal": 1,
+            },
         }
         return await self._task(params=params, json=payload)
 
@@ -1177,70 +1366,98 @@ class Client(BaseClient):
         subtask_inputs = [
             {
                 "subtask_id": "TwoFactorEnrollmentVerifyPasswordSubtask",
-                "enter_password": {"password": self.account.password, "link": "next_link"}
+                "enter_password": {
+                    "password": self.account.password,
+                    "link": "next_link",
+                },
             }
         ]
         return await self._send_task(flow_token, subtask_inputs)
 
-    async def _two_factor_enrollment_authentication_app_begin_subtask(self, flow_token: str):
+    async def _two_factor_enrollment_authentication_app_begin_subtask(
+        self, flow_token: str
+    ):
         subtask_inputs = [
             {
                 "subtask_id": "TwoFactorEnrollmentAuthenticationAppBeginSubtask",
-                "action_list": {"link": "next_link"}
+                "action_list": {"link": "next_link"},
             }
         ]
         return await self._send_task(flow_token, subtask_inputs)
 
-    async def _two_factor_enrollment_authentication_app_plain_code_subtask(self, flow_token: str):
+    async def _two_factor_enrollment_authentication_app_plain_code_subtask(
+        self, flow_token: str
+    ):
         subtask_inputs = [
-                {
-                    "subtask_id": "TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask",
-                    "show_code": {"link": "next_link"}
+            {
+                "subtask_id": "TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask",
+                "show_code": {"link": "next_link"},
+            },
+            {
+                "subtask_id": "TwoFactorEnrollmentAuthenticationAppEnterCodeSubtask",
+                "enter_text": {
+                    "text": self.account.get_totp_code(),
+                    "link": "next_link",
                 },
-                {
-                    "subtask_id": "TwoFactorEnrollmentAuthenticationAppEnterCodeSubtask",
-                    "enter_text": {"text": self.account.get_totp_code(), "link": "next_link"}
-                }
-            ]
+            },
+        ]
         return await self._send_task(flow_token, subtask_inputs)
 
     async def _finish_2fa_task(self, flow_token: str):
         subtask_inputs = [
-                {
-                    "subtask_id": "TwoFactorEnrollmentAuthenticationAppCompleteSubtask",
-                    "cta": {"link": "finish_link"}
-                }
-            ]
+            {
+                "subtask_id": "TwoFactorEnrollmentAuthenticationAppCompleteSubtask",
+                "cta": {"link": "finish_link"},
+            }
+        ]
         return await self._send_task(flow_token, subtask_inputs)
 
-    async def _enable_2fa(self):
+    async def _enable_totp(self):
         flow_token, subtasks = await self._request_2fa_tasks()
-        flow_token, subtasks = await self._two_factor_enrollment_verify_password_subtask(flow_token)
-        flow_token, subtasks = await self._two_factor_enrollment_authentication_app_begin_subtask(flow_token)
+        flow_token, subtasks = (
+            await self._two_factor_enrollment_verify_password_subtask(flow_token)
+        )
+        flow_token, subtasks = (
+            await self._two_factor_enrollment_authentication_app_begin_subtask(
+                flow_token
+            )
+        )
 
         for subtask in subtasks:
-            if subtask["subtask_id"] == 'TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask':
-                self.account.totp_secret = subtask['show_code']['code']
+            if (
+                subtask["subtask_id"]
+                == "TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask"
+            ):
+                self.account.totp_secret = subtask["show_code"]["code"]
                 break
 
-        flow_token, subtasks = await self._two_factor_enrollment_authentication_app_plain_code_subtask(flow_token)
+        flow_token, subtasks = (
+            await self._two_factor_enrollment_authentication_app_plain_code_subtask(
+                flow_token
+            )
+        )
 
         for subtask in subtasks:
-            if subtask["subtask_id"] == 'TwoFactorEnrollmentAuthenticationAppCompleteSubtask':
-                result = re.search(r'\n[a-z0-9]{12}\n', subtask['cta']['secondary_text']['text'])
+            if (
+                subtask["subtask_id"]
+                == "TwoFactorEnrollmentAuthenticationAppCompleteSubtask"
+            ):
+                result = re.search(
+                    r"\n[a-z0-9]{12}\n", subtask["cta"]["secondary_text"]["text"]
+                )
                 backup_code = result[0].strip() if result else None
                 self.account.backup_code = backup_code
                 break
 
         await self._finish_2fa_task(flow_token)
 
-    async def enable_2fa(self):
+    async def enable_totp(self):
         if not self.account.password:
             raise ValueError("Password is required for this action")
 
-        if await self.is_enabled_2fa():
+        if await self.totp_is_enabled():
             return
 
-        # TODO Перед началом работы вызываем request_user_data, чтоб убедиться что нет других ошибок
+        # TODO Осторожно, костыль! Перед началом работы вызываем request_user_data, чтоб убедиться что нет других ошибок
         await self.request_user_data()
-        await self._enable_2fa()
+        await self._enable_totp()

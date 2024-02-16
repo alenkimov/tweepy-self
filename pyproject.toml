@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tweepy-self"
-version = "1.4.0"
+version = "1.5.0"
 description = "Twitter (selfbot) for Python!"
 authors = ["Alen <alen.kimov@gmail.com>"]
 readme = "README.md"
@@ -16,6 +16,9 @@ pydantic = "^2"
 lxml = "^5"
 pyotp = "^2"
 yarl = "^1"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24"
 
 [build-system]
 requires = ["poetry-core"]

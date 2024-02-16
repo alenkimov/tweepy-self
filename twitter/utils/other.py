@@ -15,7 +15,7 @@ def tweet_url(username: str, tweet_id: int) -> str:
 
 
 def to_datetime(twitter_datetime: str):
-    return datetime.strptime(twitter_datetime, '%a %b %d %H:%M:%S +0000 %Y')
+    return datetime.strptime(twitter_datetime, "%a %b %d %H:%M:%S +0000 %Y")
 
 
 def hidden_value(value: str) -> str:

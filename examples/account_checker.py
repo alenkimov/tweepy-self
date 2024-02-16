@@ -24,6 +24,17 @@ ACCOUNTS_TXT = INPUT_OUTPUT_DIR / f"{twitter.AccountStatus.UNKNOWN}.txt"
 [filepath.touch() for filepath in (PROXIES_TXT, ACCOUNTS_TXT)]
 
 SEPARATOR = ":"
+MAX_TASKS = 10
+
+
+async def limited_gather(tasks: list[asyncio.Task], limit: int = 100):
+    semaphore = asyncio.Semaphore(limit)
+
+    async def sem_task(task):
+        async with semaphore:
+            return await task
+
+    await asyncio.gather(*(sem_task(task) for task in tasks))
 
 
 def sort_accounts(
@@ -88,7 +99,7 @@ async def check_accounts(
         if account.status == twitter.AccountStatus.UNKNOWN:
             tasks.append(establish_account_status(account, proxy=proxy))
     try:
-        await asyncio.gather(*tasks)
+        await limited_gather(tasks, limit=MAX_TASKS)
     finally:
         sorted_accounts = sort_accounts(accounts)
         save_sorted_accounts_with_additional_data(sorted_accounts)

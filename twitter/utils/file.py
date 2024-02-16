@@ -38,4 +38,4 @@ def write_json(filepath: Path | str, data):
 
 
 def to_json(obj) -> str:
-    return json.dumps(obj, separators=(',', ':'), ensure_ascii=True)
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=True)
