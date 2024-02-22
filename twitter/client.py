@@ -383,16 +383,37 @@ class Client(BaseClient):
                 await self.request_username()
             return await self._request_user_data(self.account.username)
 
-    async def upload_image(self, image: bytes) -> int:
+    async def upload_image(
+        self,
+        image: bytes,
+        attempts: int = 3,
+        timeout: float | tuple[float, float] = None,
+    ) -> int:
         """
         Upload image as bytes.
+
+        Иногда при первой попытке загрузки изображения возвращает 408,
+        после чего повторная попытка загрузки изображения проходит успешно
 
         :return: Media ID
         """
         url = "https://upload.twitter.com/1.1/media/upload.json"
 
         data = {"media_data": base64.b64encode(image)}
-        response, response_json = await self.request("POST", url, data=data)
+
+        for attempt in range(attempts):
+            try:
+                response, response_json = await self.request(
+                    "POST", url, data=data, timeout=timeout
+                )
+                media_id = response_json["media_id"]
+                return media_id
+            except HTTPException as exc:
+                if attempt < attempts - 1 and exc.response.status_code == 408:
+                    continue
+                else:
+                    raise
+
         media_id = response_json["media_id"]
         return media_id
 
