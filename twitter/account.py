@@ -1,26 +1,15 @@
 from pathlib import Path
 from typing import Sequence, Iterable
-import enum
 
 from pydantic import BaseModel, Field
 import pyotp
 
 from .utils import hidden_value, load_lines, write_lines
-
-
-class AccountStatus(enum.StrEnum):
-    UNKNOWN        = "UNKNOWN"
-    BAD_TOKEN      = "BAD_TOKEN"
-    SUSPENDED      = "SUSPENDED"
-    LOCKED         = "LOCKED"
-    CONSENT_LOCKED = "CONSENT_LOCKED"
-    GOOD           = "GOOD"
-
-    def __str__(self):
-        return self.value
+from .enums import AccountStatus
 
 
 class Account(BaseModel):
+    # fmt: off
     auth_token:  str | None = Field(default=None, pattern=r"^[a-f0-9]{40}$")
     ct0:         str | None = None
     id:          int | None = None
@@ -31,6 +20,7 @@ class Account(BaseModel):
     totp_secret: str | None = None
     backup_code: str | None = None
     status: AccountStatus = AccountStatus.UNKNOWN
+    # fmt: on
 
     @property
     def hidden_auth_token(self) -> str | None:
@@ -62,10 +52,10 @@ class Account(BaseModel):
 
 
 def load_accounts_from_file(
-        filepath: Path | str,
-        *,
-        separator: str = ":",
-        fields: Sequence[str] = ("auth_token", "password", "email", "username"),
+    filepath: Path | str,
+    *,
+    separator: str = ":",
+    fields: Sequence[str] = ("auth_token", "password", "email", "username"),
 ) -> list[Account]:
     """
     :param filepath: Путь до файла с данными об аккаунтах.
@@ -82,11 +72,11 @@ def load_accounts_from_file(
 
 
 def extract_accounts_to_file(
-        filepath: Path | str,
-        accounts: Iterable[Account],
-        *,
-        separator: str = ":",
-        fields: Sequence[str] = ("auth_token", "password", "email", "username"),
+    filepath: Path | str,
+    accounts: Iterable[Account],
+    *,
+    separator: str = ":",
+    fields: Sequence[str] = ("auth_token", "password", "email", "username"),
 ):
     lines = []
     for account in accounts:
