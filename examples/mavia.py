@@ -71,7 +71,7 @@ async def main():
             print(f"{twitter_account} Сделал Quote твит (DYM): {tweet_url}")
             print(f"\tТекст: {dym_quote_message_text}")
             with open(RESULTS_TXT, "a") as results_file:
-                results_file.write(f"{twitter_account.auth_token} (DYM): {tweet_url}")
+                results_file.write(f"{twitter_account.auth_token} (DYM): {tweet_url}\n")
             await asyncio.sleep(3)
 
             # Твит Mavia
@@ -84,7 +84,7 @@ async def main():
             print(f"{twitter_account} Сделал Quote твит (MAVIA): {tweet_url}")
             print(f"\tТекст: {mavia_quote_message_text}")
             with open(RESULTS_TXT, "a") as results_file:
-                results_file.write(f"{twitter_account.auth_token} (MAVIA): {tweet_url}")
+                results_file.write(f"{twitter_account.auth_token} (MAVIA): {tweet_url}\n")
             await asyncio.sleep(3)
 
 
