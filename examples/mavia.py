@@ -2,6 +2,7 @@ from itertools import cycle
 import asyncio
 from pathlib import Path
 
+import curl_cffi
 from better_proxy import Proxy
 import twitter
 
@@ -55,37 +56,48 @@ async def main():
         SCREENSHOTS_DIR.iterdir(),
     ):  # type: (Proxy, twitter.Account), str, str, Path,
         async with twitter.Client(twitter_account, proxy=proxy) as twitter_client:
-            await twitter_client.request_user_data()
+            try:
+                await twitter_client.request_user_data()
 
-            # Подписка
-            for user_id in USER_IDS_TO_FOLLOW:
-                await twitter_client.follow(user_id)
-                print(f"{twitter_account} Подписался на {user_id}")
+                # Подписка
+                for user_id in USER_IDS_TO_FOLLOW:
+                    await twitter_client.follow(user_id)
+                    print(f"{twitter_account} Подписался на {user_id}")
+                    await asyncio.sleep(3)
+
+                # Твит DYM
+                tweet_id = await twitter_client.quote(
+                    QUOT_DYM_TWEET_URL, dym_quote_message_text
+                )
+                tweet_url = twitter.utils.tweet_url(twitter_account.username, tweet_id)
+                print(f"{twitter_account} Сделал Quote твит (DYM): {tweet_url}")
+                print(f"\tТекст: {dym_quote_message_text}")
+                with open(RESULTS_TXT, "a") as results_file:
+                    results_file.write(
+                        f"{twitter_account.auth_token} (DYM): {tweet_url}\n"
+                    )
                 await asyncio.sleep(3)
 
-            # Твит DYM
-            tweet_id = await twitter_client.quote(
-                QUOT_DYM_TWEET_URL, dym_quote_message_text
-            )
-            tweet_url = twitter.utils.tweet_url(twitter_account.username, tweet_id)
-            print(f"{twitter_account} Сделал Quote твит (DYM): {tweet_url}")
-            print(f"\tТекст: {dym_quote_message_text}")
-            with open(RESULTS_TXT, "a") as results_file:
-                results_file.write(f"{twitter_account.auth_token} (DYM): {tweet_url}\n")
-            await asyncio.sleep(3)
-
-            # Твит Mavia
-            image = open(screenshot_path, "rb").read()
-            media_id = await twitter_client.upload_image(image)
-            tweet_id = await twitter_client.quote(
-                QUOT_MAVIA_TWEET_URL, mavia_quote_message_text, media_id=media_id
-            )
-            tweet_url = twitter.utils.tweet_url(twitter_account.username, tweet_id)
-            print(f"{twitter_account} Сделал Quote твит (MAVIA): {tweet_url}")
-            print(f"\tТекст: {mavia_quote_message_text}")
-            with open(RESULTS_TXT, "a") as results_file:
-                results_file.write(f"{twitter_account.auth_token} (MAVIA): {tweet_url}\n")
-            await asyncio.sleep(3)
+                # Твит Mavia
+                image = open(screenshot_path, "rb").read()
+                media_id = await twitter_client.upload_image(image)
+                tweet_id = await twitter_client.quote(
+                    QUOT_MAVIA_TWEET_URL, mavia_quote_message_text, media_id=media_id
+                )
+                tweet_url = twitter.utils.tweet_url(twitter_account.username, tweet_id)
+                print(f"{twitter_account} Сделал Quote твит (MAVIA): {tweet_url}")
+                print(f"\tТекст: {mavia_quote_message_text}")
+                with open(RESULTS_TXT, "a") as results_file:
+                    results_file.write(
+                        f"{twitter_account.auth_token} (MAVIA): {tweet_url}\n"
+                    )
+                await asyncio.sleep(3)
+            except curl_cffi.requests.errors.RequestsError as exc:
+                print(f"Ошибка запроса. Возможно, плохой прокси: {exc}")
+                continue
+            except Exception as exc:
+                print(f"Что-то очень плохое: {exc}")
+                continue
 
 
 if __name__ == "__main__":
