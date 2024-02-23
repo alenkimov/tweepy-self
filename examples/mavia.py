@@ -69,13 +69,11 @@ async def main():
                 tweet_id = await twitter_client.quote(
                     QUOT_DYM_TWEET_URL, dym_quote_message_text
                 )
-                tweet_url = twitter.utils.tweet_url(twitter_account.username, tweet_id)
-                print(f"{twitter_account} Сделал Quote твит (DYM): {tweet_url}")
+                dym_tweet_url = twitter.utils.tweet_url(
+                    twitter_account.username, tweet_id
+                )
+                print(f"{twitter_account} Сделал Quote твит (DYM): {dym_tweet_url}")
                 print(f"\tТекст: {dym_quote_message_text}")
-                with open(RESULTS_TXT, "a") as results_file:
-                    results_file.write(
-                        f"{twitter_account.auth_token} (DYM): {tweet_url}\n"
-                    )
                 await asyncio.sleep(3)
 
                 # Твит Mavia
@@ -84,14 +82,19 @@ async def main():
                 tweet_id = await twitter_client.quote(
                     QUOT_MAVIA_TWEET_URL, mavia_quote_message_text, media_id=media_id
                 )
-                tweet_url = twitter.utils.tweet_url(twitter_account.username, tweet_id)
-                print(f"{twitter_account} Сделал Quote твит (MAVIA): {tweet_url}")
+                mavia_tweet_url = twitter.utils.tweet_url(
+                    twitter_account.username, tweet_id
+                )
+                print(f"{twitter_account} Сделал Quote твит (MAVIA): {mavia_tweet_url}")
                 print(f"\tТекст: {mavia_quote_message_text}")
+                print(f"\tСкриншот: {screenshot_path.stem}")
+                await asyncio.sleep(3)
+
                 with open(RESULTS_TXT, "a") as results_file:
                     results_file.write(
-                        f"{twitter_account.auth_token} (MAVIA): {tweet_url}\n"
+                        f"{twitter_account.auth_token},{screenshot_path.stem},{mavia_tweet_url},{dym_tweet_url}"
                     )
-                await asyncio.sleep(3)
+
             except curl_cffi.requests.errors.RequestsError as exc:
                 print(f"Ошибка запроса. Возможно, плохой прокси: {exc}")
                 continue
