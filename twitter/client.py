@@ -388,7 +388,7 @@ class Client(BaseClient):
         self,
         image: bytes,
         attempts: int = 3,
-        timeout: float | tuple[float, float] = None,
+        timeout: float | tuple[float, float] = 10,
     ) -> int:
         """
         Upload image as bytes.
@@ -409,8 +409,18 @@ class Client(BaseClient):
                 )
                 media_id = response_json["media_id"]
                 return media_id
-            except HTTPException as exc:
-                if attempt < attempts - 1 and exc.response.status_code == 408:
+            except (HTTPException, requests.errors.RequestsError) as exc:
+                if (
+                    attempt < attempts - 1
+                    and (
+                        isinstance(exc, requests.errors.RequestsError)
+                        and exc.code == 28
+                    )
+                    or (
+                        isinstance(exc, HTTPException)
+                        and exc.response.status_code == 408
+                    )
+                ):
                     continue
                 else:
                     raise
