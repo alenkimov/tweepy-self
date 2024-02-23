@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tweepy-self"
-version = "1.6.0"
+version = "1.6.1"
 description = "Twitter (selfbot) for Python!"
 authors = ["Alen <alen.kimov@gmail.com>"]
 readme = "README.md"

@@ -595,7 +595,7 @@ class Client(BaseClient):
                 tweets = await self.request_tweets(self.account.id)
                 duplicate_tweet = None
                 for tweet_ in tweets:
-                    if tweet_.full_text == text:
+                    if tweet_.full_text.startswith(text.strip()):
                         duplicate_tweet = tweet_
 
                 if not duplicate_tweet:
