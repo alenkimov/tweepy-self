@@ -88,7 +88,7 @@ async def main():
 
                 with open(RESULTS_TXT, "a") as results_file:
                     results_file.write(
-                        f"{twitter_account.auth_token},{screenshot_path.stem},{mavia_tweet.url},{dym_tweet.url}"
+                        f"{twitter_account.auth_token},{screenshot_path.stem},{mavia_tweet.url},{dym_tweet.url}\n"
                     )
 
             except curl_cffi.requests.errors.RequestsError as exc:
