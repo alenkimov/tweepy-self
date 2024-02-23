@@ -66,33 +66,29 @@ async def main():
                     await asyncio.sleep(3)
 
                 # Твит DYM
-                tweet_id = await twitter_client.quote(
+                dym_tweet = await twitter_client.quote(
                     QUOT_DYM_TWEET_URL, dym_quote_message_text
                 )
-                dym_tweet_url = twitter.utils.tweet_url(
-                    twitter_account.username, tweet_id
-                )
-                print(f"{twitter_account} Сделал Quote твит (DYM): {dym_tweet_url}")
-                print(f"\tТекст: {dym_quote_message_text}")
+                print(f"{twitter_account} Сделал Quote твит (DYM): {dym_tweet.url}")
+                print(f"\tТекст: {dym_tweet.full_text}")
                 await asyncio.sleep(3)
 
                 # Твит Mavia
                 image = open(screenshot_path, "rb").read()
                 media_id = await twitter_client.upload_image(image)
-                tweet_id = await twitter_client.quote(
-                    QUOT_MAVIA_TWEET_URL, mavia_quote_message_text, media_id=media_id
+                mavia_tweet = await twitter_client.quote(
+                    QUOT_MAVIA_TWEET_URL,
+                    mavia_quote_message_text,
+                    media_id=media_id,
                 )
-                mavia_tweet_url = twitter.utils.tweet_url(
-                    twitter_account.username, tweet_id
-                )
-                print(f"{twitter_account} Сделал Quote твит (MAVIA): {mavia_tweet_url}")
-                print(f"\tТекст: {mavia_quote_message_text}")
+                print(f"{twitter_account} Сделал Quote твит (MAVIA): {mavia_tweet.url}")
+                print(f"\tТекст: {mavia_tweet.full_text}")
                 print(f"\tСкриншот: {screenshot_path.stem}")
                 await asyncio.sleep(3)
 
                 with open(RESULTS_TXT, "a") as results_file:
                     results_file.write(
-                        f"{twitter_account.auth_token},{screenshot_path.stem},{mavia_tweet_url},{dym_tweet_url}"
+                        f"{twitter_account.auth_token},{screenshot_path.stem},{mavia_tweet.url},{dym_tweet.url}"
                     )
 
             except curl_cffi.requests.errors.RequestsError as exc:
