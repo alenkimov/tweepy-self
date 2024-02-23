@@ -4,6 +4,7 @@ from .account import Account
 
 __all__ = [
     "TwitterException",
+    "FailedToFindDuplicatePost",
     "HTTPException",
     "BadRequest",
     "Unauthorized",
@@ -20,6 +21,10 @@ __all__ = [
 
 
 class TwitterException(Exception):
+    pass
+
+
+class FailedToFindDuplicatePost(TwitterException):
     pass
 
 

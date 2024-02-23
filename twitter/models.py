@@ -47,6 +47,7 @@ class Tweet(BaseModel):
     retweet_count: int
     retweeted: bool
     raw_data: dict
+    url: str | None = None
 
     def __str__(self):
         short_text = (

@@ -11,6 +11,7 @@ from python3_capsolver.fun_captcha import FunCaptcha, FunCaptchaTypeEnm
 
 from .errors import (
     TwitterException,
+    FailedToFindDuplicatePost,
     HTTPException,
     BadRequest,
     Unauthorized,
@@ -24,7 +25,7 @@ from .errors import (
     ConsentLocked,
     Suspended,
 )
-from .utils import to_json
+from .utils import to_json, tweet_url as create_tweet_url
 from .base import BaseClient
 from .account import Account, AccountStatus
 from .models import UserData, Tweet
@@ -520,7 +521,7 @@ class Client(BaseClient):
         media_id: int | str = None,
         tweet_id_to_reply: str | int = None,
         attachment_url: str = None,
-    ) -> int:
+    ) -> Tweet:
         url, query_id = self._action_to_url("CreateTweet")
         payload = {
             "variables": {
@@ -564,32 +565,103 @@ class Client(BaseClient):
             )
 
         response, response_json = await self.request("POST", url, json=payload)
-        tweet_id = response_json["data"]["create_tweet"]["tweet_results"]["result"][
-            "rest_id"
-        ]
-        return tweet_id
+        tweet = Tweet.from_raw_data(
+            response_json["data"]["create_tweet"]["tweet_results"]["result"]
+        )
+        return tweet
 
-    async def tweet(self, text: str, *, media_id: int | str = None) -> int:
-        """
-        :return: Tweet ID
-        """
-        return await self._tweet(text, media_id=media_id)
+    async def _tweet_or_search_duplicate(
+        self,
+        text: str = None,
+        *,
+        media_id: int | str = None,
+        tweet_id_to_reply: str | int = None,
+        attachment_url: str = None,
+        search_duplicate: bool = True,
+        with_tweet_url: bool = True,
+    ) -> Tweet:
+        try:
+            tweet = await self._tweet(
+                text,
+                media_id=media_id,
+                tweet_id_to_reply=tweet_id_to_reply,
+                attachment_url=attachment_url,
+            )
+        except HTTPException as exc:
+            if (
+                search_duplicate
+                and 187 in exc.api_codes  # duplicate tweet (Status is a duplicate)
+            ):
+                tweets = await self.request_tweets(self.account.id)
+                duplicate_tweet = None
+                for tweet_ in tweets:
+                    if tweet_.full_text == text:
+                        duplicate_tweet = tweet_
+
+                if not duplicate_tweet:
+                    raise FailedToFindDuplicatePost(
+                        f"Couldn't find a post duplicate in the next 20 posts"
+                    )
+                tweet = duplicate_tweet
+
+            else:
+                raise
+
+        if with_tweet_url:
+            if not self.account.username:
+                await self.request_user_data()
+            tweet.url = create_tweet_url(self.account.username, tweet.id)
+
+        return tweet
+
+    async def tweet(
+        self,
+        text: str,
+        *,
+        media_id: int | str = None,
+        search_duplicate: bool = True,
+        with_tweet_url: bool = True,
+    ) -> Tweet:
+        return await self._tweet_or_search_duplicate(
+            text,
+            media_id=media_id,
+            search_duplicate=search_duplicate,
+            with_tweet_url=with_tweet_url,
+        )
 
     async def reply(
-        self, tweet_id: str | int, text: str, *, media_id: int | str = None
-    ) -> int:
-        """
-        :return: Tweet ID
-        """
-        return await self._tweet(text, media_id=media_id, tweet_id_to_reply=tweet_id)
+        self,
+        tweet_id: str | int,
+        text: str,
+        *,
+        media_id: int | str = None,
+        search_duplicate: bool = True,
+        with_tweet_url: bool = True,
+    ) -> Tweet:
+        return await self._tweet_or_search_duplicate(
+            text,
+            media_id=media_id,
+            tweet_id_to_reply=tweet_id,
+            search_duplicate=search_duplicate,
+            with_tweet_url=with_tweet_url,
+        )
 
     async def quote(
-        self, tweet_url: str, text: str, *, media_id: int | str = None
-    ) -> int:
-        """
-        :return: Tweet ID
-        """
-        return await self._tweet(text, media_id=media_id, attachment_url=tweet_url)
+        self,
+        tweet_url: str,
+        text: str,
+        *,
+        media_id: int | str = None,
+        search_duplicate: bool = True,
+        with_tweet_url: bool = True,
+    ) -> Tweet:
+        return await self._tweet_or_search_duplicate(
+            text,
+            media_id=media_id,
+            attachment_url=tweet_url,
+            search_duplicate=search_duplicate,
+            with_tweet_url=with_tweet_url,
+        )
 
     async def vote(
         self, tweet_id: int | str, card_id: int | str, choice_number: int
