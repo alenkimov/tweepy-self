@@ -2,6 +2,7 @@
 [![Telegram channel](https://img.shields.io/endpoint?url=https://runkit.io/damiankrawczyk/telegram-badge/branches/master?url=https://t.me/cum_insider)](https://t.me/cum_insider)
 [![PyPI version info](https://img.shields.io/pypi/v/tweepy-self.svg)](https://pypi.python.org/pypi/tweepy-self)
 [![PyPI supported Python versions](https://img.shields.io/pypi/pyversions/tweepy-self.svg)](https://pypi.python.org/pypi/tweepy-self)
+[![PyPI downloads per month](https://img.shields.io/pypi/dm/tweepy-self.svg)](https://pypi.python.org/pypi/tweepy-self)
 
 A modern, easy to use, feature-rich, and async ready API wrapper for Twitter's user API written in Python.
 
