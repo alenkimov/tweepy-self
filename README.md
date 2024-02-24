@@ -9,9 +9,8 @@ A modern, easy to use, feature-rich, and async ready API wrapper for Twitter's u
 - Docs (soon)
 
 More libraries of the family:
-- [better-web3](https://github.com/alenkimov/better_web3)
 - [better-proxy](https://github.com/alenkimov/better_proxy)
-- [better-automation](https://github.com/alenkimov/better_automation)
+- [better-web3](https://github.com/alenkimov/better_web3)
 
 Отдельное спасибо [Кузнице Ботов](https://t.me/bots_forge) за код для авторизации и разморозки! Подписывайтесь на их Telegram :)
 
