@@ -4,6 +4,7 @@ version = "1.6.2"
 description = "Twitter (selfbot) for Python!"
 authors = ["Alen <alen.kimov@gmail.com>"]
 readme = "README.md"
+repository = "https://github.com/alenkimov/tweepy-self"
 packages = [{include = "twitter"}]
 
 [tool.poetry.dependencies]
