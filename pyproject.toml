@@ -10,7 +10,7 @@ packages = [{include = "twitter"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 curl_cffi = {version = "0.6.0b9", allow-prereleases = true}
-better-proxy = "1.1.1"
+better-proxy = "^1.1"
 beautifulsoup4 = "^4"
 pydantic = ">=1"
 lxml = "^5"
@@ -18,8 +18,8 @@ pyotp = "^2"
 yarl = "^1"
 aiohttp = "^3.9"
 tenacity = "^8"
-requests = "^2.31"
-loguru = "^0.7.2"
+requests = "^2"
+loguru = "^0.7"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24"
