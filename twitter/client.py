@@ -7,7 +7,7 @@ import re
 from curl_cffi import requests
 from yarl import URL
 
-from python3_capsolver.fun_captcha import FunCaptcha, FunCaptchaTypeEnm
+from ._capsolver.fun_captcha import FunCaptcha, FunCaptchaTypeEnm
 
 from .errors import (
     TwitterException,
