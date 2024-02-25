@@ -76,7 +76,7 @@ class Client(BaseClient):
         *,
         wait_on_rate_limit: bool = True,
         capsolver_api_key: str = None,
-        max_unlock_attempts: int = 4,
+        max_unlock_attempts: int = 5,
         **session_kwargs,
     ):
         super().__init__(**session_kwargs)
