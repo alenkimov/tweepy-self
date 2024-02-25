@@ -1,9 +1,11 @@
+import sys
 from typing import Any, Literal
 from time import time
 import asyncio
 import base64
 import re
 
+from loguru import logger
 from curl_cffi import requests
 from yarl import URL
 
@@ -108,6 +110,13 @@ class Client(BaseClient):
                 cookies["ct0"] = self.account.ct0
                 headers["x-csrf-token"] = self.account.ct0
 
+        # fmt: off
+        log_message = f"{self.account} Request {method} {url}"
+        if kwargs.get('data'): log_message += f"\nRequest data: {kwargs.get('data')}"
+        if kwargs.get('json'): log_message += f"\nRequest data: {kwargs.get('json')}"
+        logger.debug(log_message)
+        # fmt: on
+
         try:
             response = await self._session.request(method, url, **kwargs)
         except requests.errors.RequestsError as exc:
@@ -120,6 +129,13 @@ class Client(BaseClient):
             raise
 
         data = response.text
+        # fmt: off
+        log_message = (f"{self.account} Response {method} {url}"
+                       f"\nStatus code: {response.status_code}"
+                       f"\nResponse data: {data}")
+        logger.debug(log_message)
+        # fmt: on
+
         if response.headers["content-type"].startswith("application/json"):
             data = response.json()
 

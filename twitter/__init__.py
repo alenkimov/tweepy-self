@@ -30,3 +30,7 @@ import warnings
 
 # HACK: Ignore event loop warnings from curl_cffi
 warnings.filterwarnings("ignore", module="curl_cffi")
+
+from loguru import logger
+
+logger.disable("twitter")

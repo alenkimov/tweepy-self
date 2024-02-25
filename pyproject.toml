@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tweepy-self"
-version = "1.7.0"
+version = "1.8.0"
 description = "Twitter (selfbot) for Python!"
 authors = ["Alen <alen.kimov@gmail.com>"]
 readme = "README.md"
@@ -19,6 +19,7 @@ yarl = "^1"
 aiohttp = "^3.9"
 tenacity = "^8"
 requests = "^2.31"
+loguru = "^0.7.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24"
