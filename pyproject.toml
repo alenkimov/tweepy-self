@@ -7,6 +7,9 @@ readme = "README.md"
 repository = "https://github.com/alenkimov/tweepy-self"
 packages = [{include = "twitter"}]
 
+[tool.poetry.urls]
+Source = "https://github.com/alenkimov/tweepy-self"
+
 [tool.poetry.dependencies]
 python = "^3.11"
 curl_cffi = {version = "0.6.0b9", allow-prereleases = true}
