@@ -24,7 +24,7 @@ PROXIES = Proxy.from_file(PROXIES_TXT)
 if not PROXIES:
     PROXIES = [None]
 
-semaphore = asyncio.Semaphore(5)  # Ограничение на 5 одновременных задач
+semaphore = asyncio.Semaphore(10)  # Ограничение на 10 одновременных задач
 
 
 async def handle_account(
@@ -49,7 +49,9 @@ async def handle_account(
                 # Установка аватарки
                 with open(avatar_path, "rb") as avatar_file:
                     image = avatar_file.read()
-                media_id = await twitter_client.upload_image(image)
+                media_id = await twitter_client.upload_image(
+                    image, timeout=120, attempts=5
+                )
                 image_url = await twitter_client.update_profile_avatar(media_id)
                 print(f"{twitter_account} Установил эту аватарку: {image_url}")
                 await asyncio.sleep(1)
@@ -60,7 +62,9 @@ async def handle_account(
                 # Установка баннера
                 with open(banner_path, "rb") as banner_file:
                     image = banner_file.read()
-                media_id = await twitter_client.upload_image(image)
+                media_id = await twitter_client.upload_image(
+                    image, timeout=120, attempts=5
+                )
                 image_url = await twitter_client.update_profile_banner(media_id)
                 print(f"{twitter_account} Установил этот банер: {image_url}")
                 await asyncio.sleep(1)
