@@ -1,11 +1,44 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel
 
 from .utils import to_datetime
 
 
-class UserData(BaseModel):
+class Image(BaseModel):
+    type: str
+    width: int
+    height: int
+
+
+class Media(BaseModel):
+    image: Image
+    size: int
+    id: int
+    expires_at: datetime
+
+    @classmethod
+    def from_raw_data(cls, data: dict):
+        # image_data = {
+        #     "type": data["image"]["image_type"],
+        #     "width": data["image"]["w"],
+        #     "height": data["image"]["h"],
+        # }
+        expires_at = datetime.now() + timedelta(seconds=data["expires_after_secs"])
+        values = {
+            "image": {
+                "type": data["image"]["image_type"],
+                "width": data["image"]["w"],
+                "height": data["image"]["h"],
+            },
+            "size": data["size"],
+            "id": data["media_id"],
+            "expires_at": expires_at,
+        }
+        return cls(**values)
+
+
+class User(BaseModel):
     id: int
     username: str
     name: str
@@ -20,7 +53,7 @@ class UserData(BaseModel):
         return f"({self.id}) @{self.username}"
 
     @classmethod
-    def from_raw_user_data(cls, data: dict):
+    def from_raw_data(cls, data: dict):
         legacy = data["legacy"]
         keys = ("name", "description", "location", "followers_count", "friends_count")
         values = {key: legacy[key] for key in keys}

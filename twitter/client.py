@@ -1,4 +1,3 @@
-import sys
 from typing import Any, Literal
 from time import time
 import asyncio
@@ -28,13 +27,13 @@ from .errors import (
     Suspended,
 )
 from .utils import to_json, tweet_url as create_tweet_url
-from .base import BaseClient
+from .base import BaseHTTPClient
 from .account import Account, AccountStatus
-from .models import UserData, Tweet
+from .models import User, Tweet, Media
 from .utils import remove_at_sign, parse_oauth_html, parse_unlock_html
 
 
-class Client(BaseClient):
+class Client(BaseHTTPClient):
     _BEARER_TOKEN = "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
     _DEFAULT_HEADERS = {
         "authority": "twitter.com",
@@ -356,7 +355,7 @@ class Client(BaseClient):
         response, response_json = await self.request("POST", url)
         self.account.username = response_json["screen_name"]
 
-    async def _request_user_data(self, username: str) -> UserData:
+    async def _request_user_data(self, username: str) -> User:
         url, query_id = self._action_to_url("UserByScreenName")
         username = remove_at_sign(username)
         variables = {
@@ -384,7 +383,7 @@ class Client(BaseClient):
             "fieldToggles": to_json(field_toggles),
         }
         response, response_json = await self.request("GET", url, params=params)
-        user_data = UserData.from_raw_user_data(response_json["data"]["user"]["result"])
+        user_data = User.from_raw_data(response_json["data"]["user"]["result"])
 
         if self.account.username == user_data.username:
             self.account.id = user_data.id
@@ -392,7 +391,7 @@ class Client(BaseClient):
 
         return user_data
 
-    async def request_user_data(self, username: str = None) -> UserData:
+    async def request_user_data(self, username: str = None) -> User:
         if username:
             return await self._request_user_data(username)
         else:
@@ -405,26 +404,25 @@ class Client(BaseClient):
         image: bytes,
         attempts: int = 3,
         timeout: float | tuple[float, float] = 10,
-    ) -> int:
+    ) -> Media:
         """
         Upload image as bytes.
 
         Иногда при первой попытке загрузки изображения возвращает 408,
         после чего повторная попытка загрузки изображения проходит успешно
 
-        :return: Media ID
+        :return: Media
         """
         url = "https://upload.twitter.com/1.1/media/upload.json"
 
-        data = {"media_data": base64.b64encode(image)}
+        payload = {"media_data": base64.b64encode(image)}
 
         for attempt in range(attempts):
             try:
-                response, response_json = await self.request(
-                    "POST", url, data=data, timeout=timeout
+                response, data = await self.request(
+                    "POST", url, data=payload, timeout=timeout
                 )
-                media_id = response_json["media_id"]
-                return media_id
+                return Media.from_raw_data(data)
             except (HTTPException, requests.errors.RequestsError) as exc:
                 if (
                     attempt < attempts - 1
@@ -440,9 +438,6 @@ class Client(BaseClient):
                     continue
                 else:
                     raise
-
-        media_id = response_json["media_id"]
-        return media_id
 
     async def _follow_action(self, action: str, user_id: int | str) -> bool:
         url = f"https://twitter.com/i/api/1.1/friendships/{action}.json"
@@ -708,7 +703,7 @@ class Client(BaseClient):
 
     async def _request_users(
         self, action: str, user_id: int | str, count: int
-    ) -> list[UserData]:
+    ) -> list[User]:
         url, query_id = self._action_to_url(action)
         variables = {
             "userId": str(user_id),
@@ -753,12 +748,12 @@ class Client(BaseClient):
                     user_data_dict = entry["content"]["itemContent"]["user_results"][
                         "result"
                     ]
-                    users.append(UserData.from_raw_user_data(user_data_dict))
+                    users.append(User.from_raw_data(user_data_dict))
         return users
 
     async def request_followers(
         self, user_id: int | str = None, count: int = 10
-    ) -> list[UserData]:
+    ) -> list[User]:
         """
         :param user_id: Текущий пользователь, если не передан ID иного пользователя.
         :param count: Количество подписчиков.
@@ -772,7 +767,7 @@ class Client(BaseClient):
 
     async def request_followings(
         self, user_id: int | str = None, count: int = 10
-    ) -> list[UserData]:
+    ) -> list[User]:
         """
         :param user_id: Текущий пользователь, если не передан ID иного пользователя.
         :param count: Количество подписчиков.
