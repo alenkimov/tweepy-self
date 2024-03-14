@@ -54,7 +54,7 @@ async def handle_account(
                     f"{twitter_account.auth_token},"
                     f"@{twitter_account.username},"
                     f"{twitter_account.totp_secret},"
-                    f"{twitter_account.backup_code}"
+                    f"{twitter_account.backup_code}\n"
                 )
             await asyncio.sleep(1)
 
