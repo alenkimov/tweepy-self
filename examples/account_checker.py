@@ -26,6 +26,8 @@ ACCOUNTS_TXT = INPUT_OUTPUT_DIR / f"{twitter.AccountStatus.UNKNOWN}.txt"
 SEPARATOR = ":"
 MAX_TASKS = 10
 
+CAPSOLVER_API_KEY = None  # To auto-unlock
+
 
 async def limited_gather(tasks: list[asyncio.Task], limit: int = 100):
     semaphore = asyncio.Semaphore(limit)
@@ -72,7 +74,7 @@ def print_statistic(sorted_accounts: SortedAccounts):
 
 
 async def establish_account_status(account: twitter.Account, proxy: Proxy = None):
-    async with twitter.Client(account, proxy=proxy) as twitter_client:
+    async with twitter.Client(account, proxy=proxy, capsolver_api_key=CAPSOLVER_API_KEY) as twitter_client:
         try:
             await twitter_client.establish_status()
         except requests.errors.RequestsError:
