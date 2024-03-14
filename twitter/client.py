@@ -26,24 +26,16 @@ from .errors import (
     ConsentLocked,
     Suspended,
 )
-from .utils import to_json, tweet_url as create_tweet_url
+from .utils import to_json
 from .base import BaseHTTPClient
 from .account import Account, AccountStatus
 from .models import User, Tweet, Media
-from .utils import remove_at_sign, parse_oauth_html, parse_unlock_html
-
-
-def _tweets_from_instructions(instructions: dict) -> list[Tweet]:
-    tweets = []
-    for instruction in instructions:
-        if instruction["type"] == "TimelineAddEntries":
-            for entry in instruction["entries"]:
-                if entry["entryId"].startswith("tweet-"):
-                    tweet_data = entry["content"]["itemContent"]["tweet_results"][
-                        "result"
-                    ]
-                    tweets.append(Tweet.from_raw_data(tweet_data))
-    return tweets
+from .utils import (
+    remove_at_sign,
+    parse_oauth_html,
+    parse_unlock_html,
+    tweets_data_from_instructions,
+)
 
 
 class Client(BaseHTTPClient):
@@ -500,23 +492,13 @@ class Client(BaseHTTPClient):
             "variables": {"tweet_id": tweet_id, "dark_request": False},
             "queryId": query_id,
         }
-        response, response_json = await self.request("POST", url, json=json_payload)
-        return response_json
+        response, data = await self.request("POST", url, json=json_payload)
+        return data
 
-    async def repost(self, tweet_id: int) -> Tweet:
-        """
-        Repost (retweet)
-
-        :return: Tweet
-        """
-        response_json = await self._interact_with_tweet("CreateRetweet", tweet_id)
-        tweet_id = int(
-            response_json["data"]["create_retweet"]["retweet_results"]["result"][
-                "rest_id"
-            ]
-        )
-        tweet = self.request_tweet(tweet_id)
-        return tweet
+    async def _repost(self, tweet_id: int | str) -> Tweet:
+        data = await self._interact_with_tweet("CreateRetweet", tweet_id)
+        tweet_id = data["data"]["create_retweet"]["retweet_results"]["result"]["rest_id"]  # type: ignore
+        return await self.request_tweet(tweet_id)
 
     async def _repost_or_search_duplicate(
         self,
@@ -525,12 +507,7 @@ class Client(BaseHTTPClient):
         search_duplicate: bool = True,
     ) -> Tweet:
         try:
-            tweet = await self._tweet(
-                text,
-                media_id=media_id,
-                tweet_id_to_reply=tweet_id_to_reply,
-                attachment_url=attachment_url,
-            )
+            tweet = await self._repost(tweet_id)
         except HTTPException as exc:
             if (
                 search_duplicate
@@ -539,40 +516,36 @@ class Client(BaseHTTPClient):
             ):
                 tweets = await self.request_tweets(self.account.id)
                 duplicate_tweet = None
-                for tweet_ in tweets:
-                    if tweet_.full_text.startswith(text.strip()):
+                for tweet_ in tweets:  # type: Tweet
+                    if tweet_.retweeted_tweet and tweet_.retweeted_tweet.id == tweet_id:
                         duplicate_tweet = tweet_
 
                 if not duplicate_tweet:
                     raise FailedToFindDuplicatePost(
                         f"Couldn't find a post duplicate in the next 20 posts"
                     )
+
                 tweet = duplicate_tweet
 
             else:
                 raise
 
-        if with_tweet_url:
-            if not self.account.username:
-                await self.request_user()
-            tweet.url = create_tweet_url(self.account.username, tweet.id)
-
         return tweet
 
-    async def repost(self, tweet_id: int) -> Tweet:
+    async def repost(
+        self,
+        tweet_id: int,
+        *,
+        search_duplicate: bool = True,
+    ) -> Tweet:
         """
         Repost (retweet)
 
         :return: Tweet
         """
-        response_json = await self._interact_with_tweet("CreateRetweet", tweet_id)
-        tweet_id = int(
-            response_json["data"]["create_retweet"]["retweet_results"]["result"][
-                "rest_id"
-            ]
+        return await self._repost_or_search_duplicate(
+            tweet_id, search_duplicate=search_duplicate
         )
-        tweet = self.request_tweet(tweet_id)
-        return tweet
 
     async def like(self, tweet_id: int) -> bool:
         response_json = await self._interact_with_tweet("FavoriteTweet", tweet_id)
@@ -679,7 +652,6 @@ class Client(BaseHTTPClient):
         tweet_id_to_reply: str | int = None,
         attachment_url: str = None,
         search_duplicate: bool = True,
-        with_tweet_url: bool = True,
     ) -> Tweet:
         try:
             tweet = await self._tweet(
@@ -693,10 +665,10 @@ class Client(BaseHTTPClient):
                 search_duplicate
                 and 187 in exc.api_codes  # duplicate tweet (Status is a duplicate)
             ):
-                tweets = await self.request_tweets(self.account.id)
+                tweets = await self.request_tweets()
                 duplicate_tweet = None
                 for tweet_ in tweets:
-                    if tweet_.full_text.startswith(text.strip()):
+                    if tweet_.text.startswith(text.strip()):
                         duplicate_tweet = tweet_
 
                 if not duplicate_tweet:
@@ -708,11 +680,6 @@ class Client(BaseHTTPClient):
             else:
                 raise
 
-        if with_tweet_url:
-            if not self.account.username:
-                await self.request_user()
-            tweet.url = create_tweet_url(self.account.username, tweet.id)
-
         return tweet
 
     async def tweet(
@@ -721,13 +688,11 @@ class Client(BaseHTTPClient):
         *,
         media_id: int | str = None,
         search_duplicate: bool = True,
-        with_tweet_url: bool = True,
     ) -> Tweet:
         return await self._tweet_or_search_duplicate(
             text,
             media_id=media_id,
             search_duplicate=search_duplicate,
-            with_tweet_url=with_tweet_url,
         )
 
     async def reply(
@@ -737,14 +702,12 @@ class Client(BaseHTTPClient):
         *,
         media_id: int | str = None,
         search_duplicate: bool = True,
-        with_tweet_url: bool = True,
     ) -> Tweet:
         return await self._tweet_or_search_duplicate(
             text,
             media_id=media_id,
             tweet_id_to_reply=tweet_id,
             search_duplicate=search_duplicate,
-            with_tweet_url=with_tweet_url,
         )
 
     async def quote(
@@ -754,14 +717,12 @@ class Client(BaseHTTPClient):
         *,
         media_id: int | str = None,
         search_duplicate: bool = True,
-        with_tweet_url: bool = True,
     ) -> Tweet:
         return await self._tweet_or_search_duplicate(
             text,
             media_id=media_id,
             attachment_url=tweet_url,
             search_duplicate=search_duplicate,
-            with_tweet_url=with_tweet_url,
         )
 
     async def vote(
@@ -917,11 +878,9 @@ class Client(BaseHTTPClient):
             "features": to_json(features),
         }
         response, data = await self.request("GET", url, params=query)
-
-        instructions = data["data"]["threaded_conversation_with_injections_v2"][
-            "instructions"
-        ]
-        return _tweets_from_instructions(instructions)[0]
+        instructions = data["data"]["threaded_conversation_with_injections_v2"]["instructions"]  # type: ignore
+        tweet_data = tweets_data_from_instructions(instructions)[0]
+        return Tweet.from_raw_data(tweet_data)
 
     async def _request_tweets(self, user_id: int | str, count: int = 20) -> list[Tweet]:
         url, query_id = self._action_to_url("UserTweets")
@@ -962,27 +921,23 @@ class Client(BaseHTTPClient):
         instructions = data["data"]["user"]["result"]["timeline_v2"]["timeline"][
             "instructions"
         ]
-        return _tweets_from_instructions(instructions)
+        tweets_data = tweets_data_from_instructions(instructions)
+        return [Tweet.from_raw_data(tweet_data) for tweet_data in tweets_data]
 
-    async def request_tweet(
-        self, tweet_id: int | str, *, with_additional_data: bool = True
-    ) -> Tweet:
-        tweet = await self._request_tweet(tweet_id)
-        if with_additional_data:
-            tweet.user = await self.request_user(user_id=tweet.user_id)
-            tweet.url = create_tweet_url(tweet.user.username, tweet.id)
-        return tweet
+    async def request_tweet(self, tweet_id: int | str) -> Tweet:
+        return await self._request_tweet(tweet_id)
 
     async def request_tweets(
-        self, user_id: int | str, *, with_additional_data: bool = True, count: int = 20
+        self,
+        user_id: int | str = None,
+        count: int = 20,
     ) -> list[Tweet]:
-        tweets = await self._request_tweets(user_id, count)
-        if with_additional_data:
-            users = await self.request_users([tweet.user_id for tweet in tweets])
-            for tweet in tweets:
-                tweet.user = users[tweet.user_id]
-                tweet.url = create_tweet_url(tweet.user.username, tweet.id)
-        return tweets
+        if not user_id:
+            if not self.account.id:
+                await self.request_user()
+            user_id = self.account.id
+
+        return await self._request_tweets(user_id, count)
 
     async def _update_profile_image(
         self, type: Literal["banner", "image"], media_id: str | int
@@ -1008,8 +963,8 @@ class Client(BaseHTTPClient):
             "skip_status": "1",
             "return_user": "true",
         }
-        response, response_json = await self.request("POST", url, params=params)
-        image_url = response_json[f"profile_{type}_url"]
+        response, data = await self.request("POST", url, params=params)
+        image_url = data[f"profile_{type}_url"]
         return image_url
 
     async def update_profile_avatar(self, media_id: int | str) -> str:
@@ -1026,12 +981,12 @@ class Client(BaseHTTPClient):
 
     async def change_username(self, username: str) -> bool:
         url = "https://twitter.com/i/api/1.1/account/settings.json"
-        data = {"screen_name": username}
-        response, response_json = await self.request("POST", url, data=data)
-        new_username = response_json["screen_name"]
-        is_changed = new_username == username
+        payload = {"screen_name": username}
+        response, data = await self.request("POST", url, data=payload)
+        new_username = data["screen_name"]
+        changed = new_username == username
         self.account.username = new_username
-        return is_changed
+        return changed
 
     async def change_password(self, password: str) -> bool:
         """
@@ -1041,17 +996,18 @@ class Client(BaseHTTPClient):
             raise ValueError(f"Specify the current password before changing it")
 
         url = "https://twitter.com/i/api/i/account/change_password.json"
-        data = {
+        payload = {
             "current_password": self.account.password,
             "password": password,
             "password_confirmation": password,
         }
-        response, response_json = await self.request("POST", url, data=data)
-        is_changed = response_json["status"] == "ok"
+        response, data = await self.request("POST", url, data=payload)
+        changed = data["status"] == "ok"
+        # TODO Делать это автоматически в методе request
         auth_token = response.cookies.get("auth_token", domain=".twitter.com")
         self.account.auth_token = auth_token
         self.account.password = password
-        return is_changed
+        return changed
 
     async def update_profile(
         self,
@@ -1067,9 +1023,9 @@ class Client(BaseHTTPClient):
             raise ValueError("Specify at least one param")
 
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
-        headers = {"content-type": "application/x-www-form-urlencoded"}
+        # headers = {"content-type": "application/x-www-form-urlencoded"}
         # Создаем словарь data, включая в него только те ключи, для которых значения не равны None
-        data = {
+        payload = {
             k: v
             for k, v in [
                 ("name", name),
@@ -1079,21 +1035,18 @@ class Client(BaseHTTPClient):
             ]
             if v is not None
         }
-        response, response_json = await self.request(
-            "POST", url, headers=headers, data=data
-        )
+        # response, response_json = await self.request("POST", url, headers=headers, data=payload)
+        response, data = await self.request("POST", url, data=payload)
         # Проверяем, что все переданные параметры соответствуют полученным
-        is_updated = all(
-            response_json.get(key) == value
-            for key, value in data.items()
-            if key != "url"
+        updated = all(
+            data.get(key) == value for key, value in payload.items() if key != "url"
         )
         if website:
-            is_updated &= URL(website) == URL(
-                response_json["entities"]["url"]["urls"][0]["expanded_url"]
+            updated &= URL(website) == URL(
+                data["entities"]["url"]["urls"][0]["expanded_url"]
             )
         await self.request_user()
-        return is_updated
+        return updated
 
     async def establish_status(self):
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
@@ -1123,7 +1076,7 @@ class Client(BaseHTTPClient):
             "POST", url, headers=headers, data=data
         )
         birthdate_data = response_json["extended_profile"]["birthdate"]
-        is_updated = all(
+        updated = all(
             (
                 birthdate_data["day"] == day,
                 birthdate_data["month"] == month,
@@ -1132,7 +1085,7 @@ class Client(BaseHTTPClient):
                 birthdate_data["year_visibility"] == year_visibility,
             )
         )
-        return is_updated
+        return updated
 
     async def send_message(self, user_id: int | str, text: str) -> dict:
         """
@@ -1148,9 +1101,9 @@ class Client(BaseHTTPClient):
                 },
             }
         }
-        response, response_json = await self.request("POST", url, json=payload)
-        event_data = response_json["event"]
-        return event_data
+        response, data = await self.request("POST", url, json=payload)
+        event_data = data["event"]
+        return event_data  # TODO Возвращать модель, а не словарь
 
     async def request_messages(self) -> list[dict]:
         """
@@ -1199,7 +1152,7 @@ class Client(BaseHTTPClient):
             for entry in response_json["inbox_initial_state"]["entries"]
             if "message" in entry
         ]
-        return messages
+        return messages  # TODO Возвращать модели, а не словари
 
     async def _confirm_unlock(
         self,
@@ -1501,7 +1454,7 @@ class Client(BaseHTTPClient):
                 flow_token
             )
 
-        # TODO Возможно, стоит добавить отслеживание этих параметров прямо в request
+        # TODO Делать это автоматически в методе request
         self.account.auth_token = self._session.cookies["auth_token"]
         self.account.ct0 = self._session.cookies["ct0"]
 

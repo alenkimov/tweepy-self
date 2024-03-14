@@ -20,6 +20,7 @@ __all__ = [
 ]
 
 
+# TODO Возвращать аккаунт в теле исключения
 class TwitterException(Exception):
     pass
 

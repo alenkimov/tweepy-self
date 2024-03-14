@@ -16,6 +16,7 @@ from .other import (
     tweet_url,
     to_datetime,
     hidden_value,
+    tweets_data_from_instructions,
 )
 
 
@@ -33,4 +34,5 @@ __all__ = [
     "tweet_url",
     "to_datetime",
     "hidden_value",
+    "tweets_data_from_instructions",
 ]

@@ -70,7 +70,7 @@ async def main():
                     QUOT_DYM_TWEET_URL, dym_quote_message_text
                 )
                 print(f"{twitter_account} Сделал Quote твит (DYM): {dym_tweet.url}")
-                print(f"\tТекст: {dym_tweet.full_text}")
+                print(f"\tТекст: {dym_tweet.text}")
                 await asyncio.sleep(3)
 
                 # Твит Mavia
@@ -82,7 +82,7 @@ async def main():
                     media_id=media_id,
                 )
                 print(f"{twitter_account} Сделал Quote твит (MAVIA): {mavia_tweet.url}")
-                print(f"\tТекст: {mavia_tweet.full_text}")
+                print(f"\tТекст: {mavia_tweet.text}")
                 print(f"\tСкриншот: {screenshot_path.stem}")
                 await asyncio.sleep(3)
 
