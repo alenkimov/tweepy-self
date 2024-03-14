@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Literal, Iterable
 from time import time
 import asyncio
 import base64
@@ -33,8 +33,21 @@ from .models import User, Tweet, Media
 from .utils import remove_at_sign, parse_oauth_html, parse_unlock_html
 
 
+def _tweets_from_instructions(instructions: dict) -> list[Tweet]:
+    tweets = []
+    for instruction in instructions:
+        if instruction["type"] == "TimelineAddEntries":
+            for entry in instruction["entries"]:
+                if entry["entryId"].startswith("tweet-"):
+                    tweet_data = entry["content"]["itemContent"]["tweet_results"][
+                        "result"
+                    ]
+                    tweets.append(Tweet.from_raw_data(tweet_data))
+    return tweets
+
+
 class Client(BaseHTTPClient):
-    _BEARER_TOKEN = "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+    _BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
     _DEFAULT_HEADERS = {
         "authority": "twitter.com",
         "origin": "https://twitter.com",
@@ -57,6 +70,7 @@ class Client(BaseHTTPClient):
         "Following": "t-BPOrMIduGUJWO_LxcvNQ",
         "Followers": "3yX7xr2hKjcZYnXt6cU6lQ",
         "UserByScreenName": "G3KGOASz96M-Qu0nwmGXNg",
+        "UsersByRestIds": "itEhGywpgX9b3GJCzOtSrA",
         "Viewer": "W62NnYgkgziw9bwyoVht0g",
     }
     _CAPTCHA_URL = "https://twitter.com/account/access"
@@ -98,7 +112,7 @@ class Client(BaseHTTPClient):
         headers = kwargs["headers"] = kwargs.get("headers") or {}
 
         if bearer:
-            headers["authorization"] = self._BEARER_TOKEN
+            headers["authorization"] = f"Bearer {self._BEARER_TOKEN}"
 
         if auth:
             if not self.account.auth_token:
@@ -385,16 +399,26 @@ class Client(BaseHTTPClient):
         response, data = await self.request("GET", url, params=params)
         return User.from_raw_data(data["data"]["user"]["result"])
 
-    async def request_user(self, username: str = None) -> User | Account:
-        if not username:
-            if not self.account.username:
-                await self.request_and_set_username()
-            username = self.account.username
+    async def request_user(
+        self, *, username: str = None, user_id: int | str = None
+    ) -> User | Account:
+        if username and user_id:
+            raise ValueError("Specify username or user_id, not both.")
 
-        user = await self._request_user(username)
+        if user_id:
+            users = await self.request_users((user_id,))
+            user = users[user_id]
+        else:
+            if not username:
+                if not self.account.username:
+                    await self.request_and_set_username()
+                username = self.account.username
+
+            user = await self._request_user(username)
 
         if self.account.username == user.username:
-            user = self.account.model_copy(update=user.model_dump())
+            self.account.update(**user.model_dump())
+            user = self.account
 
         return user
 
@@ -479,19 +503,76 @@ class Client(BaseHTTPClient):
         response, response_json = await self.request("POST", url, json=json_payload)
         return response_json
 
-    async def repost(self, tweet_id: int) -> int:
+    async def repost(self, tweet_id: int) -> Tweet:
         """
         Repost (retweet)
 
-        :return: Tweet ID
+        :return: Tweet
         """
         response_json = await self._interact_with_tweet("CreateRetweet", tweet_id)
-        retweet_id = int(
+        tweet_id = int(
             response_json["data"]["create_retweet"]["retweet_results"]["result"][
                 "rest_id"
             ]
         )
-        return retweet_id
+        tweet = self.request_tweet(tweet_id)
+        return tweet
+
+    async def _repost_or_search_duplicate(
+        self,
+        tweet_id: int,
+        *,
+        search_duplicate: bool = True,
+    ) -> Tweet:
+        try:
+            tweet = await self._tweet(
+                text,
+                media_id=media_id,
+                tweet_id_to_reply=tweet_id_to_reply,
+                attachment_url=attachment_url,
+            )
+        except HTTPException as exc:
+            if (
+                search_duplicate
+                and 327
+                in exc.api_codes  # duplicate retweet (You have already retweeted this Tweet)
+            ):
+                tweets = await self.request_tweets(self.account.id)
+                duplicate_tweet = None
+                for tweet_ in tweets:
+                    if tweet_.full_text.startswith(text.strip()):
+                        duplicate_tweet = tweet_
+
+                if not duplicate_tweet:
+                    raise FailedToFindDuplicatePost(
+                        f"Couldn't find a post duplicate in the next 20 posts"
+                    )
+                tweet = duplicate_tweet
+
+            else:
+                raise
+
+        if with_tweet_url:
+            if not self.account.username:
+                await self.request_user()
+            tweet.url = create_tweet_url(self.account.username, tweet.id)
+
+        return tweet
+
+    async def repost(self, tweet_id: int) -> Tweet:
+        """
+        Repost (retweet)
+
+        :return: Tweet
+        """
+        response_json = await self._interact_with_tweet("CreateRetweet", tweet_id)
+        tweet_id = int(
+            response_json["data"]["create_retweet"]["retweet_results"]["result"][
+                "rest_id"
+            ]
+        )
+        tweet = self.request_tweet(tweet_id)
+        return tweet
 
     async def like(self, tweet_id: int) -> bool:
         response_json = await self._interact_with_tweet("FavoriteTweet", tweet_id)
@@ -778,9 +859,29 @@ class Client(BaseHTTPClient):
                 await self.request_user()
             return await self._request_users("Following", self.account.id, count)
 
-    async def _request_tweet_data(self, tweet_id: int) -> dict:
-        action = "TweetDetail"
-        url, query_id = self._action_to_url(action)
+    async def request_users(
+        self, user_ids: Iterable[str | int]
+    ) -> dict[int : User | Account]:
+        url, query_id = self._action_to_url("UsersByRestIds")
+        variables = {"userIds": list({str(user_id) for user_id in user_ids})}
+        features = {
+            "responsive_web_graphql_exclude_directive_enabled": True,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+            "responsive_web_graphql_timeline_navigation_enabled": True,
+            "verified_phone_label_enabled": False,
+        }
+        query = {"variables": variables, "features": features}
+        response, data = await self.request("GET", url, params=query)
+
+        users = {}
+        for user_data in data["data"]["users"]:
+            user_data = user_data["result"]
+            user = User.from_raw_data(user_data)
+            users[user.id] = user
+        return users
+
+    async def _request_tweet(self, tweet_id: int | str) -> Tweet:
+        url, query_id = self._action_to_url("TweetDetail")
         variables = {
             "focalTweetId": str(tweet_id),
             "with_rux_injections": False,
@@ -811,12 +912,77 @@ class Client(BaseHTTPClient):
             "longform_notetweets_inline_media_enabled": True,
             "responsive_web_enhance_cards_enabled": False,
         }
-        params = {
+        query = {
             "variables": to_json(variables),
             "features": to_json(features),
         }
-        response, response_json = await self.request("GET", url, params=params)
-        return response_json
+        response, data = await self.request("GET", url, params=query)
+
+        instructions = data["data"]["threaded_conversation_with_injections_v2"][
+            "instructions"
+        ]
+        return _tweets_from_instructions(instructions)[0]
+
+    async def _request_tweets(self, user_id: int | str, count: int = 20) -> list[Tweet]:
+        url, query_id = self._action_to_url("UserTweets")
+        variables = {
+            "userId": str(user_id),
+            "count": count,
+            "includePromotedContent": True,
+            "withQuickPromoteEligibilityTweetFields": True,
+            "withVoice": True,
+            "withV2Timeline": True,
+        }
+        features = {
+            "responsive_web_graphql_exclude_directive_enabled": True,
+            "verified_phone_label_enabled": False,
+            "creator_subscriptions_tweet_preview_api_enabled": True,
+            "responsive_web_graphql_timeline_navigation_enabled": True,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+            "c9s_tweet_anatomy_moderator_badge_enabled": True,
+            "tweetypie_unmention_optimization_enabled": True,
+            "responsive_web_edit_tweet_api_enabled": True,
+            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
+            "view_counts_everywhere_api_enabled": True,
+            "longform_notetweets_consumption_enabled": True,
+            "responsive_web_twitter_article_tweet_consumption_enabled": False,
+            "tweet_awards_web_tipping_enabled": False,
+            "freedom_of_speech_not_reach_fetch_enabled": True,
+            "standardized_nudges_misinfo": True,
+            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": True,
+            "rweb_video_timestamps_enabled": True,
+            "longform_notetweets_rich_text_read_enabled": True,
+            "longform_notetweets_inline_media_enabled": True,
+            "responsive_web_media_download_video_enabled": False,
+            "responsive_web_enhance_cards_enabled": False,
+        }
+        params = {"variables": to_json(variables), "features": to_json(features)}
+        response, data = await self.request("GET", url, params=params)
+
+        instructions = data["data"]["user"]["result"]["timeline_v2"]["timeline"][
+            "instructions"
+        ]
+        return _tweets_from_instructions(instructions)
+
+    async def request_tweet(
+        self, tweet_id: int | str, *, with_additional_data: bool = True
+    ) -> Tweet:
+        tweet = await self._request_tweet(tweet_id)
+        if with_additional_data:
+            tweet.user = await self.request_user(user_id=tweet.user_id)
+            tweet.url = create_tweet_url(tweet.user.username, tweet.id)
+        return tweet
+
+    async def request_tweets(
+        self, user_id: int | str, *, with_additional_data: bool = True, count: int = 20
+    ) -> list[Tweet]:
+        tweets = await self._request_tweets(user_id, count)
+        if with_additional_data:
+            users = await self.request_users([tweet.user_id for tweet in tweets])
+            for tweet in tweets:
+                tweet.user = users[tweet.user_id]
+                tweet.url = create_tweet_url(tweet.user.username, tweet.id)
+        return tweets
 
     async def _update_profile_image(
         self, type: Literal["banner", "image"], media_id: str | int
@@ -1034,55 +1200,6 @@ class Client(BaseHTTPClient):
             if "message" in entry
         ]
         return messages
-
-    async def request_tweets(self, user_id: str | int, count: int = 20) -> list[Tweet]:
-        url, query_id = self._action_to_url("UserTweets")
-        variables = {
-            "userId": str(user_id),
-            "count": count,
-            "includePromotedContent": True,
-            "withQuickPromoteEligibilityTweetFields": True,
-            "withVoice": True,
-            "withV2Timeline": True,
-        }
-        features = {
-            "responsive_web_graphql_exclude_directive_enabled": True,
-            "verified_phone_label_enabled": False,
-            "creator_subscriptions_tweet_preview_api_enabled": True,
-            "responsive_web_graphql_timeline_navigation_enabled": True,
-            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
-            "c9s_tweet_anatomy_moderator_badge_enabled": True,
-            "tweetypie_unmention_optimization_enabled": True,
-            "responsive_web_edit_tweet_api_enabled": True,
-            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
-            "view_counts_everywhere_api_enabled": True,
-            "longform_notetweets_consumption_enabled": True,
-            "responsive_web_twitter_article_tweet_consumption_enabled": False,
-            "tweet_awards_web_tipping_enabled": False,
-            "freedom_of_speech_not_reach_fetch_enabled": True,
-            "standardized_nudges_misinfo": True,
-            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": True,
-            "rweb_video_timestamps_enabled": True,
-            "longform_notetweets_rich_text_read_enabled": True,
-            "longform_notetweets_inline_media_enabled": True,
-            "responsive_web_media_download_video_enabled": False,
-            "responsive_web_enhance_cards_enabled": False,
-        }
-        params = {"variables": to_json(variables), "features": to_json(features)}
-        response, response_json = await self.request("GET", url, params=params)
-
-        tweets = []
-        for instruction in response_json["data"]["user"]["result"]["timeline_v2"][
-            "timeline"
-        ]["instructions"]:
-            if instruction["type"] == "TimelineAddEntries":
-                for entry in instruction["entries"]:
-                    if entry["entryId"].startswith("tweet"):
-                        tweet_data = entry["content"]["itemContent"]["tweet_results"][
-                            "result"
-                        ]
-                        tweets.append(Tweet.from_raw_data(tweet_data))
-        return tweets
 
     async def _confirm_unlock(
         self,

@@ -72,18 +72,22 @@ class User(BaseModel):
 
 
 class Tweet(BaseModel):
-    id: int
-    user_id: int
-    created_at: datetime
-    text: str
-    lang: str
+    # fmt: off
+    id:             int
+    created_at:     datetime
+    text:           str
+    language:       str
     favorite_count: int
-    quote_count: int
-    reply_count: int
-    retweet_count: int
-    retweeted: bool
-    raw_data: dict
-    url: str | None = None
+    quote_count:    int
+    reply_count:    int
+    retweet_count:  int
+    retweeted:      bool
+    raw_data:       dict
+
+    user_id: int
+    user:    User | None = None
+    url:     str  | None = None
+    # fmt: on
 
     def __str__(self):
         return str(self.id)
@@ -99,7 +103,6 @@ class Tweet(BaseModel):
     def from_raw_data(cls, data: dict):
         legacy = data["legacy"]
         keys = (
-            "lang",
             "favorite_count",
             "quote_count",
             "reply_count",
@@ -113,6 +116,7 @@ class Tweet(BaseModel):
                 "id": int(legacy["id_str"]),
                 "created_at": to_datetime(legacy["created_at"]),
                 "text": legacy["full_text"],
+                "language": legacy["lang"],
                 "raw_data": data,
             }
         )

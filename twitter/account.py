@@ -42,6 +42,12 @@ class Account(User):
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, username={self.username}, auth_token={self.hidden_auth_token})"
 
+    def update(self, **data: dict):
+        update = self.dict()
+        update.update(data)
+        for k, v in self.validate(update).dict(exclude_defaults=True).items():
+            setattr(self, k, v)
+
     def get_totp_code(self) -> str | None:
         if not self.totp_secret:
             raise ValueError("No key2fa")
