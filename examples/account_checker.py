@@ -14,7 +14,7 @@ import twitter
 
 
 TwitterAccountWithAdditionalData = tuple[str, twitter.Account]
-SortedAccounts = dict[twitter.AccountStatus: TwitterAccountWithAdditionalData]
+SortedAccounts = dict[twitter.AccountStatus : TwitterAccountWithAdditionalData]
 
 INPUT_OUTPUT_DIR = Path("input-output")
 INPUT_OUTPUT_DIR.mkdir(exist_ok=True)
@@ -40,18 +40,27 @@ async def limited_gather(tasks: list[asyncio.Task], limit: int = 100):
 
 
 def sort_accounts(
-        accounts: Iterable[TwitterAccountWithAdditionalData]
+    accounts: Iterable[TwitterAccountWithAdditionalData],
 ) -> SortedAccounts:
-    status_to_account_with_additional_data = {status: list() for status in twitter.AccountStatus}
+    status_to_account_with_additional_data = {
+        status: list() for status in twitter.AccountStatus
+    }
     for additional_data, account in accounts:
-        status_to_account_with_additional_data[account.status].append((additional_data, account))
+        status_to_account_with_additional_data[account.status].append(
+            (additional_data, account)
+        )
     return status_to_account_with_additional_data
 
 
-def save_sorted_accounts_with_additional_data(sorted_accounts: dict[twitter.AccountStatus: (str, twitter.Account)]):
+def save_sorted_accounts_with_additional_data(
+    sorted_accounts: dict[twitter.AccountStatus : (str, twitter.Account)]
+):
     for status, accounts_with_additional_data in sorted_accounts.items():
-        filepath = INPUT_OUTPUT_DIR / f'{status}.txt'
-        lines = [additional_data for additional_data, account in accounts_with_additional_data]
+        filepath = INPUT_OUTPUT_DIR / f"{status}.txt"
+        lines = [
+            additional_data
+            for additional_data, account in accounts_with_additional_data
+        ]
         write_lines(filepath, lines)
 
 
@@ -74,7 +83,9 @@ def print_statistic(sorted_accounts: SortedAccounts):
 
 
 async def establish_account_status(account: twitter.Account, proxy: Proxy = None):
-    async with twitter.Client(account, proxy=proxy, capsolver_api_key=CAPSOLVER_API_KEY) as twitter_client:
+    async with twitter.Client(
+        account, proxy=proxy, capsolver_api_key=CAPSOLVER_API_KEY
+    ) as twitter_client:
         try:
             await twitter_client.establish_status()
         except requests.errors.RequestsError:
@@ -84,8 +95,8 @@ async def establish_account_status(account: twitter.Account, proxy: Proxy = None
 
 
 async def check_accounts(
-        accounts: Iterable[TwitterAccountWithAdditionalData],
-        proxies: Iterable[Proxy],
+    accounts: Iterable[TwitterAccountWithAdditionalData],
+    proxies: Iterable[Proxy],
 ):
     sorted_accounts = sort_accounts(accounts)
     print_statistic(sorted_accounts)
@@ -108,18 +119,22 @@ async def check_accounts(
         print_statistic(sorted_accounts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     proxies = Proxy.from_file(PROXIES_TXT)
     print(f"Прокси: {len(proxies)}")
     if not proxies:
-        print(f"(Необязательно) Внесите прокси в любом формате"
-              f"\n\tв файл по пути {PROXIES_TXT}")
+        print(
+            f"(Необязательно) Внесите прокси в любом формате"
+            f"\n\tв файл по пути {PROXIES_TXT}"
+        )
 
     accounts = load_accounts_with_additional_data()
     if not accounts:
-        print(f"Внесите аккаунты в формате auth_token:data1:data2:..."
-              f" (auth_token - обязательный параметр, остальное - любая другая информация об аккаунте)"
-              f"\n\tв файл по пути {ACCOUNTS_TXT}")
+        print(
+            f"Внесите аккаунты в формате auth_token:data1:data2:..."
+            f" (auth_token - обязательный параметр, остальное - любая другая информация об аккаунте)"
+            f"\n\tв файл по пути {ACCOUNTS_TXT}"
+        )
         quit()
 
     asyncio.run(check_accounts(accounts, proxies))
