@@ -20,6 +20,7 @@ __all__ = [
 ]
 
 
+# TODO Возвращать аккаунт в теле исключения
 class TwitterException(Exception):
     pass
 
@@ -75,7 +76,7 @@ class HTTPException(TwitterException):
             super().__init__(exception_message)
             return
 
-        self.api_errors = data.get("errors", [])
+        self.api_errors = data.get("errors", [data])
         self.detail = data.get("detail")
 
         for error in self.api_errors:

@@ -1,7 +1,7 @@
 from .session import BaseAsyncSession
 
 
-class BaseClient:
+class BaseHTTPClient:
     _DEFAULT_HEADERS = None
 
     def __init__(self, **session_kwargs):

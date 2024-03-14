@@ -77,9 +77,10 @@ Automating user accounts is against the Twitter ToS. This library is a proof of 
 
 ### Примеры работы
 Запрос информации о пользователе:
+
 ```python
 # Запрос информации о текущем пользователе:
-me = await twitter_client.request_user_data()
+me = await twitter_client.request_user()
 print(f"[{account.short_auth_token}] {me}")
 print(f"Аккаунт создан: {me.created_at}")
 print(f"Following (подписан ты): {me.followings_count}")
@@ -87,17 +88,18 @@ print(f"Followers (подписаны на тебя): {me.followers_count}")
 print(f"Прочая информация: {me.raw_data}")
 
 # Запрос информации об ином пользователе:
-elonmusk = await twitter.request_user_data("@elonmusk")
+elonmusk = await twitter.request_user("@elonmusk")
 print(elonmusk)
 ```
 
 Смена имени пользователя и пароля:
+
 ```python
 account = twitter.Account("auth_token", password="password")
 ...
 await twitter_client.change_username("new_username")
-await twitter_client.request_user_data()
-print(f"New username: {account.data.username}")
+await twitter_client.request_user()
+print(f"New username: {account.username}")
 
 await twitter_client.change_password("new_password")
 print(f"New password: {account.password}")
@@ -143,8 +145,9 @@ bind_code = await twitter_client.oauth_2(**bind_data)
 ```
 
 Отправка сообщения:
+
 ```python
-bro = await twitter_client.request_user_data("@username")
+bro = await twitter_client.request_user("@username")
 await twitter_client.send_message(bro.id, "I love you!")
 ```
 

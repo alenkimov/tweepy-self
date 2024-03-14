@@ -1,7 +1,7 @@
-from .client import BaseClient
+from .client import BaseHTTPClient
 from .session import BaseAsyncSession
 
 __all__ = [
-    "BaseClient",
+    "BaseHTTPClient",
     "BaseAsyncSession",
 ]
