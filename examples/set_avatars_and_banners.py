@@ -43,7 +43,7 @@ async def handle_account(
                 print(f"{twitter_account} {twitter_account.status}")
                 return
 
-            await twitter_client.request_user_data()
+            await twitter_client.request_user()
 
             try:
                 # Установка аватарки

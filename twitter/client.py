@@ -350,12 +350,12 @@ class Client(BaseHTTPClient):
 
         return authenticity_token, redirect_url
 
-    async def request_username(self):
+    async def request_and_set_username(self):
         url = "https://twitter.com/i/api/1.1/account/settings.json"
         response, response_json = await self.request("POST", url)
         self.account.username = response_json["screen_name"]
 
-    async def _request_user_data(self, username: str) -> User:
+    async def _request_user(self, username: str) -> User:
         url, query_id = self._action_to_url("UserByScreenName")
         username = remove_at_sign(username)
         variables = {
@@ -382,22 +382,21 @@ class Client(BaseHTTPClient):
             "features": to_json(features),
             "fieldToggles": to_json(field_toggles),
         }
-        response, response_json = await self.request("GET", url, params=params)
-        user_data = User.from_raw_data(response_json["data"]["user"]["result"])
+        response, data = await self.request("GET", url, params=params)
+        return User.from_raw_data(data["data"]["user"]["result"])
 
-        if self.account.username == user_data.username:
-            self.account.id = user_data.id
-            self.account.name = user_data.name
-
-        return user_data
-
-    async def request_user_data(self, username: str = None) -> User:
-        if username:
-            return await self._request_user_data(username)
-        else:
+    async def request_user(self, username: str = None) -> User | Account:
+        if not username:
             if not self.account.username:
-                await self.request_username()
-            return await self._request_user_data(self.account.username)
+                await self.request_and_set_username()
+            username = self.account.username
+
+        user = await self._request_user(username)
+
+        if self.account.username == user.username:
+            user = self.account.model_copy(update=user.model_dump())
+
+        return user
 
     async def upload_image(
         self,
@@ -630,7 +629,7 @@ class Client(BaseHTTPClient):
 
         if with_tweet_url:
             if not self.account.username:
-                await self.request_user_data()
+                await self.request_user()
             tweet.url = create_tweet_url(self.account.username, tweet.id)
 
         return tweet
@@ -762,7 +761,7 @@ class Client(BaseHTTPClient):
             return await self._request_users("Followers", user_id, count)
         else:
             if not self.account.id:
-                await self.request_user_data()
+                await self.request_user()
             return await self._request_users("Followers", self.account.id, count)
 
     async def request_followings(
@@ -776,7 +775,7 @@ class Client(BaseHTTPClient):
             return await self._request_users("Following", user_id, count)
         else:
             if not self.account.id:
-                await self.request_user_data()
+                await self.request_user()
             return await self._request_users("Following", self.account.id, count)
 
     async def _request_tweet_data(self, tweet_id: int) -> dict:
@@ -927,7 +926,7 @@ class Client(BaseHTTPClient):
             is_updated &= URL(website) == URL(
                 response_json["entities"]["url"]["urls"][0]["expanded_url"]
             )
-        await self.request_user_data()
+        await self.request_user()
         return is_updated
 
     async def establish_status(self):
@@ -1408,7 +1407,7 @@ class Client(BaseHTTPClient):
 
     async def totp_is_enabled(self):
         if not self.account.id:
-            await self.request_user_data()
+            await self.request_user()
 
         url = f"https://twitter.com/i/api/1.1/strato/column/User/{self.account.id}/account-security/twoFactorAuthSettings2"
         response, data = await self.request("GET", url)
@@ -1573,5 +1572,5 @@ class Client(BaseHTTPClient):
             return
 
         # TODO Осторожно, костыль! Перед началом работы вызываем request_user_data, чтоб убедиться что нет других ошибок
-        await self.request_user_data()
+        await self.request_user()
         await self._enable_totp()

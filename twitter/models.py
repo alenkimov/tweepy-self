@@ -12,18 +12,16 @@ class Image(BaseModel):
 
 
 class Media(BaseModel):
+    id: int
     image: Image
     size: int
-    id: int
     expires_at: datetime
+
+    def __str__(self):
+        return str(self.id)
 
     @classmethod
     def from_raw_data(cls, data: dict):
-        # image_data = {
-        #     "type": data["image"]["image_type"],
-        #     "width": data["image"]["w"],
-        #     "height": data["image"]["h"],
-        # }
         expires_at = datetime.now() + timedelta(seconds=data["expires_after_secs"])
         values = {
             "image": {
@@ -39,18 +37,23 @@ class Media(BaseModel):
 
 
 class User(BaseModel):
-    id: int
-    username: str
-    name: str
-    created_at: datetime
-    description: str
-    location: str
-    followers_count: int
-    friends_count: int
-    raw_data: dict
+    # fmt: off
+    id:              int      | None = None
+    username:        str      | None = None
+    name:            str      | None = None
+    created_at:      datetime | None = None
+    description:     str      | None = None
+    location:        str      | None = None
+    followers_count: int      | None = None
+    friends_count:   int      | None = None
+    raw_data:        dict     | None = None
+    # fmt: on
 
     def __str__(self):
-        return f"({self.id}) @{self.username}"
+        return str(self.id)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self.id}, username={self.username})"
 
     @classmethod
     def from_raw_data(cls, data: dict):
@@ -69,10 +72,10 @@ class User(BaseModel):
 
 
 class Tweet(BaseModel):
-    user_id: int
     id: int
+    user_id: int
     created_at: datetime
-    full_text: str
+    text: str
     lang: str
     favorite_count: int
     quote_count: int
@@ -83,16 +86,19 @@ class Tweet(BaseModel):
     url: str | None = None
 
     def __str__(self):
-        short_text = (
-            f"{self.full_text[:32]}..." if len(self.full_text) > 16 else self.full_text
-        )
-        return f"({self.id}) {short_text}"
+        return str(self.id)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self.id}, user_id={self.user_id})"
+
+    @property
+    def short_text(self) -> str:
+        return f"{self.text[:32]}..." if len(self.text) > 16 else self.text
 
     @classmethod
     def from_raw_data(cls, data: dict):
         legacy = data["legacy"]
         keys = (
-            "full_text",
             "lang",
             "favorite_count",
             "quote_count",
@@ -106,6 +112,7 @@ class Tweet(BaseModel):
                 "user_id": int(legacy["user_id_str"]),
                 "id": int(legacy["id_str"]),
                 "created_at": to_datetime(legacy["created_at"]),
+                "text": legacy["full_text"],
                 "raw_data": data,
             }
         )

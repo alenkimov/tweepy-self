@@ -57,7 +57,7 @@ async def main():
     ):  # type: (Proxy, twitter.Account), str, str, Path,
         async with twitter.Client(twitter_account, proxy=proxy) as twitter_client:
             try:
-                await twitter_client.request_user_data()
+                await twitter_client.request_user()
 
                 # Подписка
                 for user_id in USER_IDS_TO_FOLLOW:

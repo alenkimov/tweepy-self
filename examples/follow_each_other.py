@@ -56,7 +56,7 @@ async def main():
             capsolver_api_key=CAPSOLVER_API_KEY,
         ) as client:
             try:
-                me = await client.request_user_data()
+                me = await client.request_user()
                 print(f"{me} Followers: {me.followers_count}")
                 if me.followers_count >= MAX_FOLLOWERS:
                     continue

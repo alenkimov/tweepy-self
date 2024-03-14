@@ -1,20 +1,18 @@
 from pathlib import Path
 from typing import Sequence, Iterable
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 import pyotp
 
 from .utils import hidden_value, load_lines, write_lines
 from .enums import AccountStatus
+from .models import User
 
 
-class Account(BaseModel):
+class Account(User):
     # fmt: off
     auth_token:  str | None = Field(default=None, pattern=r"^[a-f0-9]{40}$")
     ct0:         str | None = None
-    id:          int | None = None
-    name:        str | None = None
-    username:    str | None = None
     password:    str | None = None
     email:       str | None = None
     totp_secret: str | None = None
@@ -38,11 +36,11 @@ class Account(BaseModel):
     def hidden_backup_code(self) -> str | None:
         return hidden_value(self.backup_code) if self.backup_code else None
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}(auth_token={self.hidden_auth_token}, username={self.username})"
-
     def __str__(self):
         return self.hidden_auth_token
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self.id}, username={self.username}, auth_token={self.hidden_auth_token})"
 
     def get_totp_code(self) -> str | None:
         if not self.totp_secret:
