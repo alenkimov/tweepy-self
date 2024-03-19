@@ -1105,6 +1105,19 @@ class Client(BaseHTTPClient):
         event_data = data["event"]
         return event_data  # TODO Возвращать модель, а не словарь
 
+    async def send_message_to_conversation(self, conversation_id: int | str, text: str) -> dict:
+        """
+        :return: Event data
+        """
+        # requires OAuth1 or OAuth2
+        url = f"https://api.twitter.com/2/dm_conversations/{conversation_id}/messages"
+        payload = {
+            "text": text
+            }
+        response, response_json = await self.request("POST", url, json=payload)
+        event_data = response_json["event"]
+        return event_data
+
     async def request_messages(self) -> list[dict]:
         """
         :return: Messages data
