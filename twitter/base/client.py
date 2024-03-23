@@ -14,7 +14,7 @@ class BaseHTTPClient:
         return self
 
     async def __aexit__(self, *args):
-        self.close()
+        await self.close()
 
-    def close(self):
-        self._session.close()
+    async def close(self):
+        await self._session.close()
