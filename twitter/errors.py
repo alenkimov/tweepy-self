@@ -65,9 +65,14 @@ class HTTPException(TwitterException):
 
         # Если ответ — строка, то это html
         if isinstance(data, str):
-            exception_message = (
-                f"(response status: {response.status_code}) HTML Response:\n{data}"
-            )
+            if not data:
+                exception_message = (
+                    f"(response status: {response.status_code}) Empty response body."
+                )
+            else:
+                exception_message = (
+                    f"(response status: {response.status_code}) HTML Response:\n{data}"
+                )
             if response.status_code == 429:
                 exception_message = (
                     f"(response status: {response.status_code}) Rate limit exceeded."
