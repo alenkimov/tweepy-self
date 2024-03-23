@@ -59,7 +59,7 @@ async def handle_account(
             await asyncio.sleep(1)
 
         except Exception as exc:
-            print(f"{repr(twitter_account)} Не удалось установить аватарку: {exc}")
+            print(f"{repr(twitter_account)} Не удалось включить TOTP: {exc}")
 
 
 async def main():
