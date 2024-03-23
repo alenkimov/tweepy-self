@@ -20,7 +20,6 @@ __all__ = [
 ]
 
 
-# TODO Возвращать аккаунт в теле исключения
 class TwitterException(Exception):
     pass
 
@@ -152,7 +151,9 @@ class BadAccount(TwitterException):
 
 class BadToken(BadAccount):
     def __init__(self, http_exception: "HTTPException", account: Account):
-        exception_message = "Bad Twitter account's auth_token."
+        exception_message = (
+            "Bad Twitter account's auth_token. Relogin to get new token."
+        )
         super().__init__(http_exception, account, exception_message)
 
 
@@ -160,14 +161,14 @@ class Locked(BadAccount):
     def __init__(self, http_exception: "HTTPException", account: Account):
         exception_message = (
             f"Twitter account is locked."
-            f" Set CapSolver API key (capsolver_api_key) to autounlock."
+            f" Set CapSolver API key (capsolver_api_key) to auto-unlock."
         )
         super().__init__(http_exception, account, exception_message)
 
 
 class ConsentLocked(BadAccount):
     def __init__(self, http_exception: "HTTPException", account: Account):
-        exception_message = f"Twitter account is consent locked. Relogin to unlock."
+        exception_message = f"Twitter account is locked."
         super().__init__(http_exception, account, exception_message)
 
 
