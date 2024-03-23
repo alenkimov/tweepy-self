@@ -1233,7 +1233,7 @@ class Client(BaseHTTPClient):
             solution = await FunCaptcha(**funcaptcha).aio_captcha_handler()
             if solution.errorId:
                 logger.warning(
-                    f"Failed to solve funcaptcha."
+                    f"{self.account} Failed to solve funcaptcha:"
                     f"\n\tUnlock attempt: {attempt}/{self.max_unlock_attempts}"
                     f"\n\tError ID: {solution.errorId}"
                     f"\n\tError code: {solution.errorCode}"
