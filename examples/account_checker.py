@@ -3,14 +3,22 @@
 """
 
 import asyncio
+import sys
 from itertools import cycle
 from pathlib import Path
 from typing import Iterable
+
+from loguru import logger
 
 from curl_cffi import requests
 from better_proxy import Proxy
 from twitter.utils import load_lines, write_lines
 import twitter
+
+LOGGING_LEVEL = "INFO"
+logger.enable("twitter")
+logger.remove()
+logger.add(sys.stderr, level=LOGGING_LEVEL)
 
 
 TwitterAccountWithAdditionalData = tuple[str, twitter.Account]
