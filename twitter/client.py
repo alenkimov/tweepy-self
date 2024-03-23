@@ -1226,8 +1226,19 @@ class Client(BaseHTTPClient):
         else:
             funcaptcha["captcha_type"] = FunCaptchaTypeEnm.FunCaptchaTaskProxyLess
 
-        while needs_unlock:
+        while needs_unlock and attempt <= self.max_unlock_attempts:
             solution = await FunCaptcha(**funcaptcha).aio_captcha_handler()
+            if solution.errorId:
+                logger.warning(
+                    f"Failed to solve funcaptcha."
+                    f"\n\tUnlock attempt: {attempt}/{self.max_unlock_attempts}"
+                    f"\n\tError ID: {solution.errorId}"
+                    f"\n\tError code: {solution.errorCode}"
+                    f"\n\tError description: {solution.errorDescription}"
+                )
+                attempt += 1
+                continue
+
             token = solution.solution["token"]
             response, html = await self._confirm_unlock(
                 authenticity_token,
@@ -1235,12 +1246,8 @@ class Client(BaseHTTPClient):
                 verification_string=token,
             )
 
-            if (
-                attempt > self.max_unlock_attempts
-                or response.url == "https://twitter.com/?lang=en"
-            ):
-                await self.establish_status()
-                return
+            if response.url == "https://twitter.com/?lang=en":
+                break
 
             (
                 authenticity_token,
@@ -1263,6 +1270,8 @@ class Client(BaseHTTPClient):
                 ) = parse_unlock_html(html)
 
             attempt += 1
+
+        await self.establish_status()
 
     async def _task(self, **kwargs):
         """
