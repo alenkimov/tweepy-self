@@ -45,7 +45,6 @@ class Client(BaseHTTPClient):
         "authority": "twitter.com",
         "origin": "https://twitter.com",
         "x-twitter-active-user": "yes",
-        # 'x-twitter-auth-type': 'OAuth2Session',
         "x-twitter-client-language": "en",
     }
     _GRAPHQL_URL = "https://twitter.com/i/api/graphql"
@@ -85,6 +84,8 @@ class Client(BaseHTTPClient):
         wait_on_rate_limit: bool = True,
         capsolver_api_key: str = None,
         max_unlock_attempts: int = 5,
+        auto_relogin: bool = True,
+        request_self_on_startup: bool = False,
         **session_kwargs,
     ):
         super().__init__(**session_kwargs)
@@ -92,13 +93,18 @@ class Client(BaseHTTPClient):
         self.wait_on_rate_limit = wait_on_rate_limit
         self.capsolver_api_key = capsolver_api_key
         self.max_unlock_attempts = max_unlock_attempts
+        self.auto_relogin = auto_relogin
+        self.request_self_on_startup = request_self_on_startup
 
-    async def request(
+    async def pure_request(
         self,
         method,
         url,
+        *,
         auth: bool = True,
         bearer: bool = True,
+        wait_on_rate_limit: bool = True,
+        repeat_request_on_353: bool = True,
         **kwargs,
     ) -> tuple[requests.Response, Any]:
         cookies = kwargs["cookies"] = kwargs.get("cookies") or {}
@@ -106,6 +112,7 @@ class Client(BaseHTTPClient):
 
         if bearer:
             headers["authorization"] = f"Bearer {self._BEARER_TOKEN}"
+            # headers["x-twitter-auth-type"] = "OAuth2Session"
 
         if auth:
             if not self.account.auth_token:
@@ -117,7 +124,8 @@ class Client(BaseHTTPClient):
                 headers["x-csrf-token"] = self.account.ct0
 
         # fmt: off
-        log_message = f"{self.account} Request {method} {url}"
+        log_message = (f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                       f" ==> Request {method} {url}")
         if kwargs.get('data'): log_message += f"\nRequest data: {kwargs.get('data')}"
         if kwargs.get('json'): log_message += f"\nRequest data: {kwargs.get('json')}"
         logger.debug(log_message)
@@ -136,10 +144,10 @@ class Client(BaseHTTPClient):
 
         data = response.text
         # fmt: off
-        log_message = (f"{self.account} Response {method} {url}"
-                       f"\nStatus code: {response.status_code}"
-                       f"\nResponse data: {data}")
-        logger.debug(log_message)
+        logger.debug(f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                     f" <== Response {method} {url}"
+                     f"\nStatus code: {response.status_code}"
+                     f"\nResponse data: {data}")
         # fmt: on
 
         try:
@@ -148,13 +156,23 @@ class Client(BaseHTTPClient):
             pass
 
         if response.status_code == 429:
-            if self.wait_on_rate_limit:
-                reset_time = int(response.headers["x-rate-limit-reset"])
-                sleep_time = reset_time - int(time()) + 1
-                if sleep_time > 0:
-                    await asyncio.sleep(sleep_time)
-                return await self.request(method, url, auth, bearer, **kwargs)
-            raise RateLimited(response, data)
+            wait_on_rate_limit = wait_on_rate_limit or self.wait_on_rate_limit
+            if not wait_on_rate_limit:
+                raise RateLimited(response, data)
+
+            reset_time = int(response.headers["x-rate-limit-reset"])
+            sleep_time = reset_time - int(time()) + 1
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+            return await self.pure_request(
+                method,
+                url,
+                auth=auth,
+                bearer=bearer,
+                wait_on_rate_limit=wait_on_rate_limit,
+                repeat_request_on_353=repeat_request_on_353,
+                **kwargs,
+            )
 
         if response.status_code == 400:
             raise BadRequest(response, data)
@@ -163,7 +181,6 @@ class Client(BaseHTTPClient):
             exc = Unauthorized(response, data)
 
             if 32 in exc.api_codes:
-                self.account.status = AccountStatus.BAD_TOKEN
                 raise BadToken(exc, self.account)
 
             raise exc
@@ -171,12 +188,22 @@ class Client(BaseHTTPClient):
         if response.status_code == 403:
             exc = Forbidden(response, data)
 
-            if 353 in exc.api_codes and "ct0" in response.cookies:
-                self.account.ct0 = response.cookies["ct0"]
-                return await self.request(method, url, auth, bearer, **kwargs)
+            if (
+                353 in exc.api_codes
+                and "ct0" in exc.response.cookies
+                and repeat_request_on_353
+            ):
+                return await self.pure_request(
+                    method,
+                    url,
+                    auth=auth,
+                    bearer=bearer,
+                    wait_on_rate_limit=wait_on_rate_limit,
+                    repeat_request_on_353=repeat_request_on_353,
+                    **kwargs,
+                )
 
             if 64 in exc.api_codes:
-                self.account.status = AccountStatus.SUSPENDED
                 raise Suspended(exc, self.account)
 
             if 326 in exc.api_codes:
@@ -185,15 +212,9 @@ class Client(BaseHTTPClient):
                         error_data.get("code") == 326
                         and error_data.get("bounce_location") == "/i/flow/consent_flow"
                     ):
-                        self.account.status = AccountStatus.CONSENT_LOCKED
                         raise ConsentLocked(exc, self.account)
 
-                self.account.status = AccountStatus.LOCKED
-                if not self.capsolver_api_key:
-                    raise Locked(exc, self.account)
-
-                await self.unlock()
-                return await self.request(method, url, auth, bearer, **kwargs)
+                raise Locked(exc, self.account)
 
             raise exc
 
@@ -210,7 +231,6 @@ class Client(BaseHTTPClient):
             exc = HTTPException(response, data)
 
             if 141 in exc.api_codes:
-                self.account.status = AccountStatus.SUSPENDED
                 raise Suspended(exc, self.account)
 
             if 326 in exc.api_codes:
@@ -219,22 +239,70 @@ class Client(BaseHTTPClient):
                         error_data.get("code") == 326
                         and error_data.get("bounce_location") == "/i/flow/consent_flow"
                     ):
-                        self.account.status = AccountStatus.CONSENT_LOCKED
                         raise ConsentLocked(exc, self.account)
 
-                self.account.status = AccountStatus.LOCKED
-                if not self.capsolver_api_key:
-                    raise Locked(exc, self.account)
-
-                await self.unlock()
-                return await self.request(method, url, auth, bearer, **kwargs)
-
+                raise Locked(exc, self.account)
             raise exc
 
-        self.account.status = AccountStatus.GOOD
         return response, data
 
-    async def _request_oauth_2_auth_code(
+    async def request(
+        self,
+        method,
+        url,
+        *,
+        auto_unlock: bool = True,
+        auto_relogin: bool = True,
+        **kwargs,
+    ) -> tuple[requests.Response, Any]:
+        try:
+            response, data = await self.pure_request(method, url, **kwargs)
+
+            session_auth_token = self._session.cookies.get("auth_token")
+            session_ct0 = self._session.cookies.get("ct0")
+
+            if session_auth_token and self.account.auth_token != session_auth_token:
+                self.account.auth_token = session_auth_token
+                logger.info(
+                    f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                    f" Requested new auth_token."
+                )
+
+            if session_ct0 and self.account.ct0 != session_ct0:
+                self.account.ct0 = session_ct0
+
+            self.account.status = AccountStatus.GOOD
+            return response, data
+
+        except Locked:
+            self.account.status = AccountStatus.LOCKED
+            if not self.capsolver_api_key or not auto_unlock:
+                raise
+
+            await self.unlock()
+            return await self.request(method, url, **kwargs)
+
+        except BadToken:
+            self.account.status = AccountStatus.BAD_TOKEN
+            auto_relogin = auto_relogin or self.auto_relogin
+            if (
+                not auto_relogin
+                or not self.account.password
+                or not (self.account.email or self.account.username)
+            ):
+                raise
+
+            await self.relogin()
+
+        except Suspended:
+            self.account.status = AccountStatus.SUSPENDED
+            raise
+
+        except ConsentLocked:
+            self.account.status = AccountStatus.CONSENT_LOCKED
+            raise
+
+    async def _request_oauth2_auth_code(
         self,
         client_id: str,
         code_challenge: str,
@@ -258,7 +326,7 @@ class Client(BaseHTTPClient):
         auth_code = response_json["auth_code"]
         return auth_code
 
-    async def _confirm_oauth_2(self, auth_code: str):
+    async def _confirm_oauth2(self, auth_code: str):
         data = {
             "approval": "true",
             "code": auth_code,
@@ -271,7 +339,7 @@ class Client(BaseHTTPClient):
             data=data,
         )
 
-    async def oauth_2(
+    async def oauth2(
         self,
         client_id: str,
         code_challenge: str,
@@ -287,15 +355,13 @@ class Client(BaseHTTPClient):
         Привязка (бинд, линк) приложения.
 
         :param client_id: Идентификатор клиента, используемый для OAuth.
-        :param code_challenge: Код-вызов, используемый для PKCE (Proof Key for Code Exchange).
         :param state: Уникальная строка состояния для предотвращения CSRF-атак.
         :param redirect_uri: URI перенаправления, на который будет отправлен ответ.
-        :param code_challenge_method: Метод, используемый для преобразования code_verifier в code_challenge.
         :param scope: Строка областей доступа, запрашиваемых у пользователя.
         :param response_type: Тип ответа, который ожидается от сервера авторизации.
         :return: Код авторизации (привязки).
         """
-        auth_code = await self._request_oauth_2_auth_code(
+        auth_code = await self._request_oauth2_auth_code(
             client_id,
             code_challenge,
             state,
@@ -304,7 +370,7 @@ class Client(BaseHTTPClient):
             scope,
             response_type,
         )
-        await self._confirm_oauth_2(auth_code)
+        await self._confirm_oauth2(auth_code)
         return auth_code
 
     async def _oauth(self, oauth_token: str, **oauth_params) -> requests.Response:
@@ -1054,7 +1120,7 @@ class Client(BaseHTTPClient):
     async def establish_status(self):
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
         try:
-            await self.request("POST", url)
+            await self.request("POST", url, auto_unlock=False, auto_relogin=False)
         except BadAccount:
             pass
 
@@ -1112,9 +1178,10 @@ class Client(BaseHTTPClient):
         self, conversation_id: int | str, text: str
     ) -> dict:
         """
+        requires OAuth1 or OAuth2
+
         :return: Event data
         """
-        # requires OAuth1 or OAuth2
         url = f"https://api.twitter.com/2/dm_conversations/{conversation_id}/messages"
         payload = {"text": text}
         response, response_json = await self.request("POST", url, json=payload)
@@ -1479,18 +1546,9 @@ class Client(BaseHTTPClient):
                 flow_token
             )
 
-        # TODO Делать это автоматически в методе request
-        self.account.auth_token = self._session.cookies["auth_token"]
-        self.account.ct0 = self._session.cookies["ct0"]
-
         await self._finish_task(flow_token)
 
-    async def login(self):
-        if self.account.auth_token:
-            await self.establish_status()
-            if self.account.status != "BAD_TOKEN":
-                return
-
+    async def relogin(self):
         if not self.account.email and not self.account.username:
             raise ValueError("No email or username")
 
@@ -1499,6 +1557,14 @@ class Client(BaseHTTPClient):
 
         await self._login()
         await self.establish_status()
+
+    async def login(self):
+        if self.account.auth_token:
+            await self.establish_status()
+            if self.account.status not in ("BAD_TOKEN", "CONSENT_LOCKED"):
+                return
+
+        await self.relogin()
 
     async def totp_is_enabled(self):
         if not self.account.id:
@@ -1514,7 +1580,7 @@ class Client(BaseHTTPClient):
         """
         :return: flow_token, subtask_ids
         """
-        params = {
+        query = {
             "flow_name": "two-factor-auth-app-enrollment",
         }
         payload = {
@@ -1568,7 +1634,7 @@ class Client(BaseHTTPClient):
                 "web_modal": 1,
             },
         }
-        return await self._task(params=params, json=payload)
+        return await self._task(params=query, json=payload)
 
     async def _two_factor_enrollment_verify_password_subtask(self, flow_token: str):
         subtask_inputs = [
@@ -1666,6 +1732,4 @@ class Client(BaseHTTPClient):
         if await self.totp_is_enabled():
             return
 
-        # TODO Осторожно, костыль! Перед началом работы вызываем request_user_data, чтоб убедиться что нет других ошибок
-        await self.request_user()
         await self._enable_totp()
