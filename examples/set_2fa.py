@@ -40,7 +40,7 @@ async def handle_account(
             await twitter_client.request_user()
 
             if await twitter_client.totp_is_enabled():
-                f"{repr(twitter_account)} TOTP уже включен."
+                print(f"{repr(twitter_account)} TOTP уже включен.")
                 return
 
             await twitter_client.enable_totp()
