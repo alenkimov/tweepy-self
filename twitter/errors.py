@@ -62,6 +62,7 @@ class HTTPException(TwitterException):
         self.api_codes: list[int] = []
         self.api_messages: list[str] = []
         self.detail: str | None = None
+        self.html: str | None = None
 
         # Если ответ — строка, то это html
         if isinstance(data, str):
@@ -70,9 +71,8 @@ class HTTPException(TwitterException):
                     f"(response status: {response.status_code}) Empty response body."
                 )
             else:
-                exception_message = (
-                    f"(response status: {response.status_code}) HTML Response:\n{data}"
-                )
+                self.html = data
+                exception_message = f"(response status: {response.status_code}) HTML Response:\n{self.html}"
             if response.status_code == 429:
                 exception_message = (
                     f"(response status: {response.status_code}) Rate limit exceeded."
