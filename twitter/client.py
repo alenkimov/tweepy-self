@@ -96,15 +96,14 @@ class Client(BaseHTTPClient):
         self.auto_relogin = auto_relogin
         self.request_self_on_startup = request_self_on_startup
 
-    async def pure_request(
+    async def _request(
         self,
         method,
         url,
         *,
         auth: bool = True,
         bearer: bool = True,
-        wait_on_rate_limit: bool = True,
-        repeat_request_on_353: bool = True,
+        wait_on_rate_limit: bool = None,
         **kwargs,
     ) -> tuple[requests.Response, Any]:
         cookies = kwargs["cookies"] = kwargs.get("cookies") or {}
@@ -150,29 +149,46 @@ class Client(BaseHTTPClient):
                      f"\nResponse data: {data}")
         # fmt: on
 
+        if ct0 := self._session.cookies.get("ct0"):
+            self.account.ct0 = ct0
+
+        auth_token = self._session.cookies.get("auth_token")
+        if auth_token and auth_token != self.account.auth_token:
+            self.account.auth_token = auth_token
+            logger.info(
+                f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                f" Requested new auth_token!"
+            )
+
         try:
             data = response.json()
         except json.decoder.JSONDecodeError:
             pass
 
-        if response.status_code == 429:
-            wait_on_rate_limit = wait_on_rate_limit or self.wait_on_rate_limit
-            if not wait_on_rate_limit:
-                raise RateLimited(response, data)
+        if 300 > response.status_code >= 200:
+            if isinstance(data, dict) and "errors" in data:
+                exc = HTTPException(response, data)
 
-            reset_time = int(response.headers["x-rate-limit-reset"])
-            sleep_time = reset_time - int(time()) + 1
-            if sleep_time > 0:
-                await asyncio.sleep(sleep_time)
-            return await self.pure_request(
-                method,
-                url,
-                auth=auth,
-                bearer=bearer,
-                wait_on_rate_limit=wait_on_rate_limit,
-                repeat_request_on_353=repeat_request_on_353,
-                **kwargs,
-            )
+                if 141 in exc.api_codes:
+                    self.account.status = AccountStatus.SUSPENDED
+                    raise Suspended(exc, self.account)
+
+                if 326 in exc.api_codes:
+                    for error_data in exc.api_errors:
+                        if (
+                            error_data.get("code") == 326
+                            and error_data.get("bounce_location")
+                            == "/i/flow/consent_flow"
+                        ):
+                            self.account.status = AccountStatus.CONSENT_LOCKED
+                            raise ConsentLocked(exc, self.account)
+
+                    self.account.status = AccountStatus.LOCKED
+                    raise Locked(exc, self.account)
+                raise exc
+
+            self.account.status = AccountStatus.GOOD
+            return response, data
 
         if response.status_code == 400:
             raise BadRequest(response, data)
@@ -181,6 +197,7 @@ class Client(BaseHTTPClient):
             exc = Unauthorized(response, data)
 
             if 32 in exc.api_codes:
+                self.account.status = AccountStatus.BAD_TOKEN
                 raise BadToken(exc, self.account)
 
             raise exc
@@ -188,22 +205,18 @@ class Client(BaseHTTPClient):
         if response.status_code == 403:
             exc = Forbidden(response, data)
 
-            if (
-                353 in exc.api_codes
-                and "ct0" in exc.response.cookies
-                and repeat_request_on_353
-            ):
-                return await self.pure_request(
+            if 353 in exc.api_codes and "ct0" in exc.response.cookies:
+                return await self._request(
                     method,
                     url,
                     auth=auth,
                     bearer=bearer,
                     wait_on_rate_limit=wait_on_rate_limit,
-                    repeat_request_on_353=repeat_request_on_353,
                     **kwargs,
                 )
 
             if 64 in exc.api_codes:
+                self.account.status = AccountStatus.SUSPENDED
                 raise Suspended(exc, self.account)
 
             if 326 in exc.api_codes:
@@ -212,8 +225,10 @@ class Client(BaseHTTPClient):
                         error_data.get("code") == 326
                         and error_data.get("bounce_location") == "/i/flow/consent_flow"
                     ):
+                        self.account.status = AccountStatus.CONSENT_LOCKED
                         raise ConsentLocked(exc, self.account)
 
+                self.account.status = AccountStatus.LOCKED
                 raise Locked(exc, self.account)
 
             raise exc
@@ -221,30 +236,31 @@ class Client(BaseHTTPClient):
         if response.status_code == 404:
             raise NotFound(response, data)
 
+        if response.status_code == 429:
+            if wait_on_rate_limit is None:
+                wait_on_rate_limit = self.wait_on_rate_limit
+            if not wait_on_rate_limit:
+                raise RateLimited(response, data)
+
+            reset_time = int(response.headers["x-rate-limit-reset"])
+            sleep_time = reset_time - int(time()) + 1
+            if sleep_time > 0:
+                logger.info(
+                    f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                    f"Rate limited! Sleep time: {sleep_time} sec."
+                )
+                await asyncio.sleep(sleep_time)
+            return await self._request(
+                method,
+                url,
+                auth=auth,
+                bearer=bearer,
+                wait_on_rate_limit=wait_on_rate_limit,
+                **kwargs,
+            )
+
         if response.status_code >= 500:
             raise ServerError(response, data)
-
-        if not 200 <= response.status_code < 300:
-            raise HTTPException(response, data)
-
-        if isinstance(data, dict) and "errors" in data:
-            exc = HTTPException(response, data)
-
-            if 141 in exc.api_codes:
-                raise Suspended(exc, self.account)
-
-            if 326 in exc.api_codes:
-                for error_data in exc.api_errors:
-                    if (
-                        error_data.get("code") == 326
-                        and error_data.get("bounce_location") == "/i/flow/consent_flow"
-                    ):
-                        raise ConsentLocked(exc, self.account)
-
-                raise Locked(exc, self.account)
-            raise exc
-
-        return response, data
 
     async def request(
         self,
@@ -252,39 +268,22 @@ class Client(BaseHTTPClient):
         url,
         *,
         auto_unlock: bool = True,
-        auto_relogin: bool = True,
+        auto_relogin: bool = None,
         **kwargs,
     ) -> tuple[requests.Response, Any]:
         try:
-            response, data = await self.pure_request(method, url, **kwargs)
-
-            session_auth_token = self._session.cookies.get("auth_token")
-            session_ct0 = self._session.cookies.get("ct0")
-
-            if session_auth_token and self.account.auth_token != session_auth_token:
-                self.account.auth_token = session_auth_token
-                logger.info(
-                    f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
-                    f" Requested new auth_token."
-                )
-
-            if session_ct0 and self.account.ct0 != session_ct0:
-                self.account.ct0 = session_ct0
-
-            self.account.status = AccountStatus.GOOD
-            return response, data
+            return await self._request(method, url, **kwargs)
 
         except Locked:
-            self.account.status = AccountStatus.LOCKED
             if not self.capsolver_api_key or not auto_unlock:
                 raise
 
             await self.unlock()
-            return await self.request(method, url, **kwargs)
+            return await self._request(method, url, **kwargs)
 
         except BadToken:
-            self.account.status = AccountStatus.BAD_TOKEN
-            auto_relogin = auto_relogin or self.auto_relogin
+            if auto_relogin is None:
+                auto_relogin = self.auto_relogin
             if (
                 not auto_relogin
                 or not self.account.password
@@ -293,14 +292,7 @@ class Client(BaseHTTPClient):
                 raise
 
             await self.relogin()
-
-        except Suspended:
-            self.account.status = AccountStatus.SUSPENDED
-            raise
-
-        except ConsentLocked:
-            self.account.status = AccountStatus.CONSENT_LOCKED
-            raise
+            return await self._request(method, url, **kwargs)
 
     async def _request_oauth2_auth_code(
         self,
