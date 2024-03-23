@@ -2,6 +2,7 @@ from typing import Any, Literal, Iterable
 from time import time
 import asyncio
 import base64
+import json
 import re
 
 from loguru import logger
@@ -141,8 +142,10 @@ class Client(BaseHTTPClient):
         logger.debug(log_message)
         # fmt: on
 
-        if response.headers["content-type"].startswith("application/json"):
+        try:
             data = response.json()
+        except json.decoder.JSONDecodeError:
+            pass
 
         if response.status_code == 429:
             if self.wait_on_rate_limit:
