@@ -31,10 +31,10 @@ class User(BaseModel):
     # fmt: off
     id:              int      | None = None
     username:        str      | None = None
-    name:            str      | None = None
+    name:            str      | None = None  # 50
     created_at:      datetime | None = None
-    description:     str      | None = None
-    location:        str      | None = None
+    description:     str      | None = None  # 160
+    location:        str      | None = None  # 30
     followers_count: int      | None = None
     friends_count:   int      | None = None
     raw_data:        dict     | None = None
