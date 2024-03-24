@@ -1,40 +1,30 @@
 from typing import Optional
 from datetime import datetime, timedelta
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from .utils import to_datetime, tweet_url
 
 
 class Image(BaseModel):
-    type: str
-    width: int
-    height: int
+    type: str = Field(..., alias="image_type")
+    width: int = Field(..., alias="w")
+    height: int = Field(..., alias="h")
 
 
 class Media(BaseModel):
-    id: int
+    id: int = Field(..., alias="media_id")
     image: Image
     size: int
-    expires_at: datetime
+    expires_at: datetime = Field(..., alias="expires_after_secs")
+
+    @field_validator("expires_at", mode="before")
+    @classmethod
+    def set_expires_at(cls, v):
+        return datetime.now() + timedelta(seconds=v)
 
     def __str__(self):
         return str(self.id)
-
-    @classmethod
-    def from_raw_data(cls, data: dict):
-        expires_at = datetime.now() + timedelta(seconds=data["expires_after_secs"])
-        values = {
-            "image": {
-                "type": data["image"]["image_type"],
-                "width": data["image"]["w"],
-                "height": data["image"]["h"],
-            },
-            "size": data["size"],
-            "id": data["media_id"],
-            "expires_at": expires_at,
-        }
-        return cls(**values)
 
 
 class User(BaseModel):

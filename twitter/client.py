@@ -498,7 +498,7 @@ class Client(BaseHTTPClient):
                 response, data = await self.request(
                     "POST", url, data=payload, timeout=timeout
                 )
-                return Media.from_raw_data(data)
+                return Media(**data)
             except (HTTPException, requests.errors.RequestsError) as exc:
                 if (
                     attempt < attempts - 1
