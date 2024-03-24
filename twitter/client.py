@@ -1507,7 +1507,7 @@ class Client(BaseHTTPClient):
             "fieldToggles": to_json(field_toggles),
             "variables": to_json(variables),
         }
-        return self.request("GET", url, params=params)
+        return await self.request("GET", url, params=params)
 
     async def _request_guest_token(self) -> str:
         """
