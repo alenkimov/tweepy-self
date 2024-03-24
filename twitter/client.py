@@ -85,7 +85,7 @@ class Client(BaseHTTPClient):
         capsolver_api_key: str = None,
         max_unlock_attempts: int = 5,
         auto_relogin: bool = True,
-        request_self_on_startup: bool = False,
+        request_self_on_startup: bool = True,
         **session_kwargs,
     ):
         super().__init__(**session_kwargs)
@@ -95,6 +95,10 @@ class Client(BaseHTTPClient):
         self.max_unlock_attempts = max_unlock_attempts
         self.auto_relogin = auto_relogin
         self.request_self_on_startup = request_self_on_startup
+
+    async def __aenter__(self):
+        await self.on_startup()
+        return await super().__aenter__()
 
     async def _request(
         self,
@@ -293,6 +297,10 @@ class Client(BaseHTTPClient):
 
             await self.relogin()
             return await self._request(method, url, **kwargs)
+
+    async def on_startup(self):
+        if self.request_self_on_startup:
+            await self.request_user()
 
     async def _request_oauth2_auth_code(
         self,
