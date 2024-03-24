@@ -153,7 +153,7 @@ class Client(BaseHTTPClient):
                      f"\nResponse data: {data}")
         # fmt: on
 
-        if ct0 := self._session.cookies.get("ct0"):
+        if ct0 := self._session.cookies.get("ct0", domain=".twitter.com"):
             self.account.ct0 = ct0
 
         auth_token = self._session.cookies.get("auth_token")
@@ -208,16 +208,6 @@ class Client(BaseHTTPClient):
 
         if response.status_code == 403:
             exc = Forbidden(response, data)
-
-            if 353 in exc.api_codes and "ct0" in exc.response.cookies:
-                return await self._request(
-                    method,
-                    url,
-                    auth=auth,
-                    bearer=bearer,
-                    wait_on_rate_limit=wait_on_rate_limit,
-                    **kwargs,
-                )
 
             if 64 in exc.api_codes:
                 self.account.status = AccountStatus.SUSPENDED
@@ -297,6 +287,12 @@ class Client(BaseHTTPClient):
 
             await self.relogin()
             return await self._request(method, url, **kwargs)
+
+        except Forbidden as exc:
+            if 353 in exc.api_codes and "ct0" in exc.response.cookies:
+                return await self._request(method, url, **kwargs)
+            else:
+                raise
 
     async def on_startup(self):
         if self.request_self_on_startup:
@@ -1556,6 +1552,7 @@ class Client(BaseHTTPClient):
             raise ValueError("No password")
 
         await self._login()
+        await self._viewer()
         await self.establish_status()
 
     async def login(self):
