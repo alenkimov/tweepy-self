@@ -45,7 +45,7 @@ class CaptchaResponseSer(ResponseSer):
     solution: Dict[str, Any] = Field(None, description="Task result data. Different for each type of task.")
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 
 class ControlResponseSer(ResponseSer):
