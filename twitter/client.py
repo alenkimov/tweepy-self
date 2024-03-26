@@ -159,7 +159,7 @@ class Client(BaseHTTPClient):
         auth_token = self._session.cookies.get("auth_token")
         if auth_token and auth_token != self.account.auth_token:
             self.account.auth_token = auth_token
-            logger.info(
+            logger.warning(
                 f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
                 f" Requested new auth_token!"
             )
@@ -239,7 +239,7 @@ class Client(BaseHTTPClient):
             reset_time = int(response.headers["x-rate-limit-reset"])
             sleep_time = reset_time - int(time()) + 1
             if sleep_time > 0:
-                logger.info(
+                logger.warning(
                     f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
                     f"Rate limited! Sleep time: {sleep_time} sec."
                 )
@@ -483,7 +483,8 @@ class Client(BaseHTTPClient):
                 await self.request_and_set_username()
                 user = await self._request_user(self.account.username)
                 logger.warning(
-                    f"{self.account} Bad username: {bad_username}. Requested a real username."
+                    f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                    f" Bad username: {bad_username}. Requested a real username."
                 )
 
             self.account.update(**user.model_dump())
