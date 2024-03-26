@@ -625,9 +625,18 @@ class Client(BaseHTTPClient):
         )
 
     async def like(self, tweet_id: int) -> bool:
-        response_json = await self._interact_with_tweet("FavoriteTweet", tweet_id)
-        is_liked = response_json["data"]["favorite_tweet"] == "Done"
-        return is_liked
+        """
+        :return: Liked or not
+        """
+        try:
+            response_json = await self._interact_with_tweet("FavoriteTweet", tweet_id)
+        except HTTPException as exc:
+            if 139 in exc.api_codes:
+                # Already liked
+                return True
+            else:
+                raise
+        return response_json["data"]["favorite_tweet"] == "Done"
 
     async def unlike(self, tweet_id: int) -> dict:
         response_json = await self._interact_with_tweet("UnfavoriteTweet", tweet_id)
