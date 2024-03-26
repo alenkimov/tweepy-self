@@ -52,7 +52,7 @@ class Client(BaseHTTPClient):
         "CreateRetweet": "ojPdsZsimiJrUGLR1sjUtA",
         "FavoriteTweet": "lI07N6Otwv1PhnEgXILM7A",
         "UnfavoriteTweet": "ZYKSe-w7KEslx3JhSIk5LA",
-        "CreateTweet": "SoVnbfCycZ7fERGCwpZkYA",
+        "CreateTweet": "v0en1yVV-Ybeek8ClmXwYw",
         "TweetResultByRestId": "V3vfsYzNEyD9tsf4xoFRgw",
         "ModerateTweet": "p'jF:GVqCjTcZol0xcBJjw",
         "DeleteTweet": "VaenaVgh5q5ih7kvyVjgtg",
@@ -619,6 +619,8 @@ class Client(BaseHTTPClient):
         """
         Repost (retweet)
 
+        Иногда может вернуть ошибку 404 (Not Found), если плохой прокси или по другим неизвестным причинам
+
         :return: Tweet
         """
         return await self._repost_or_search_duplicate(
@@ -776,6 +778,11 @@ class Client(BaseHTTPClient):
         media_id: int | str = None,
         search_duplicate: bool = True,
     ) -> Tweet:
+        """
+        Иногда может вернуть ошибку 404 (Not Found), если плохой прокси или по другим неизвестным причинам
+
+        :return: Tweet
+        """
         return await self._tweet_or_search_duplicate(
             text,
             media_id=media_id,
@@ -790,6 +797,11 @@ class Client(BaseHTTPClient):
         media_id: int | str = None,
         search_duplicate: bool = True,
     ) -> Tweet:
+        """
+        Иногда может вернуть ошибку 404 (Not Found), если плохой прокси или по другим неизвестным причинам
+
+        :return: Tweet
+        """
         return await self._tweet_or_search_duplicate(
             text,
             media_id=media_id,
@@ -805,6 +817,11 @@ class Client(BaseHTTPClient):
         media_id: int | str = None,
         search_duplicate: bool = True,
     ) -> Tweet:
+        """
+        Иногда может вернуть ошибку 404 (Not Found), если плохой прокси или по другим неизвестным причинам
+
+        :return: Tweet
+        """
         return await self._tweet_or_search_duplicate(
             text,
             media_id=media_id,
