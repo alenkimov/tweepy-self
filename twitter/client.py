@@ -426,7 +426,7 @@ class Client(BaseHTTPClient):
         response, response_json = await self.request("POST", url)
         self.account.username = response_json["screen_name"]
 
-    async def _request_user(self, username: str) -> User:
+    async def _request_user(self, username: str) -> User | None:
         url, query_id = self._action_to_url("UserByScreenName")
         username = remove_at_sign(username)
         variables = {
@@ -454,26 +454,38 @@ class Client(BaseHTTPClient):
             "fieldToggles": to_json(field_toggles),
         }
         response, data = await self.request("GET", url, params=params)
+        if not data["data"]:
+            return None
         return User.from_raw_data(data["data"]["user"]["result"])
 
     async def request_user(
         self, *, username: str = None, user_id: int | str = None
-    ) -> User | Account:
+    ) -> User | Account | None:
+        """
+        Возвращает None, если задано несуществующее имя пользователя
+        """
         if username and user_id:
             raise ValueError("Specify username or user_id, not both.")
 
         if user_id:
             users = await self.request_users((user_id,))
             user = users[user_id]
-        else:
-            if not username:
-                if not self.account.username:
-                    await self.request_and_set_username()
-                username = self.account.username
-
+        elif username:
             user = await self._request_user(username)
+        else:
+            if not self.account.username:
+                await self.request_and_set_username()
 
-        if self.account.username == user.username:
+            user = await self._request_user(self.account.username)
+
+            if not user:
+                bad_username = self.account.username
+                await self.request_and_set_username()
+                user = await self._request_user(self.account.username)
+                logger.warning(
+                    f"{self.account} Bad username: {bad_username}. Requested a real username."
+                )
+
             self.account.update(**user.model_dump())
             user = self.account
 
