@@ -54,8 +54,6 @@ async def main():
             capsolver_api_key=CAPSOLVER_API_KEY,
         ) as twitter_client:
             try:
-                await twitter_client.request_user_data()
-
                 # Подписка
                 for user_id in USER_IDS_TO_FOLLOW:
                     await twitter_client.follow(user_id)
@@ -67,7 +65,7 @@ async def main():
                     QUOT_TWEET_URL, xai_quote_message_text
                 )
                 print(f"{twitter_account} Сделал Quote твит (XAI): {xai_tweet.url}")
-                print(f"\tТекст: {xai_tweet.full_text}")
+                print(f"\tТекст: {xai_tweet.text}")
                 await asyncio.sleep(3)
 
                 with open(RESULTS_TXT, "a") as results_file:
