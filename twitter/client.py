@@ -686,47 +686,50 @@ class Client(BaseHTTPClient):
         attachment_url: str = None,
     ) -> Tweet:
         url, query_id = self._action_to_url("CreateTweet")
-        payload = {
-            "variables": {
-                "tweet_text": text if text is not None else "",
-                "dark_request": False,
-                "media": {"media_entities": [], "possibly_sensitive": False},
-                "semantic_annotation_ids": [],
-            },
-            "features": {
-                "tweetypie_unmention_optimization_enabled": True,
-                "responsive_web_edit_tweet_api_enabled": True,
-                "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
-                "view_counts_everywhere_api_enabled": True,
-                "longform_notetweets_consumption_enabled": True,
-                "tweet_awards_web_tipping_enabled": False,
-                "longform_notetweets_rich_text_read_enabled": True,
-                "longform_notetweets_inline_media_enabled": True,
-                "responsive_web_graphql_exclude_directive_enabled": True,
-                "verified_phone_label_enabled": False,
-                "freedom_of_speech_not_reach_fetch_enabled": True,
-                "standardized_nudges_misinfo": True,
-                "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": False,
-                "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
-                "responsive_web_graphql_timeline_navigation_enabled": True,
-                "responsive_web_enhance_cards_enabled": False,
-                "responsive_web_twitter_article_tweet_consumption_enabled": False,
-                "responsive_web_media_download_video_enabled": False,
-            },
-            "queryId": query_id,
+        variables = {
+            "tweet_text": text if text is not None else "",
+            "dark_request": False,
+            "media": {"media_entities": [], "possibly_sensitive": False},
+            "semantic_annotation_ids": [],
         }
         if attachment_url:
-            payload["variables"]["attachment_url"] = attachment_url
+            variables["attachment_url"] = attachment_url
         if tweet_id_to_reply:
-            payload["variables"]["reply"] = {
+            variables["reply"] = {
                 "in_reply_to_tweet_id": str(tweet_id_to_reply),
                 "exclude_reply_user_ids": [],
             }
         if media_id:
-            payload["variables"]["media"]["media_entities"].append(
+            variables["media"]["media_entities"].append(
                 {"media_id": str(media_id), "tagged_users": []}
             )
-
+        features = {
+            "communities_web_enable_tweet_community_results_fetch": True,
+            "c9s_tweet_anatomy_moderator_badge_enabled": True,
+            "tweetypie_unmention_optimization_enabled": True,
+            "responsive_web_edit_tweet_api_enabled": True,
+            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
+            "view_counts_everywhere_api_enabled": True,
+            "longform_notetweets_consumption_enabled": True,
+            "responsive_web_twitter_article_tweet_consumption_enabled": True,
+            "tweet_awards_web_tipping_enabled": False,
+            "longform_notetweets_rich_text_read_enabled": True,
+            "longform_notetweets_inline_media_enabled": True,
+            "rweb_video_timestamps_enabled": True,
+            "responsive_web_graphql_exclude_directive_enabled": True,
+            "verified_phone_label_enabled": False,
+            "freedom_of_speech_not_reach_fetch_enabled": True,
+            "standardized_nudges_misinfo": True,
+            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": True,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+            "responsive_web_graphql_timeline_navigation_enabled": True,
+            "responsive_web_enhance_cards_enabled": False,
+        }
+        payload = {
+            "variables": variables,
+            "features": features,
+            "queryId": query_id,
+        }
         response, response_json = await self.request("POST", url, json=payload)
         tweet = Tweet.from_raw_data(
             response_json["data"]["create_tweet"]["tweet_results"]["result"]
