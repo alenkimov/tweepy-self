@@ -290,7 +290,7 @@ class Client(BaseHTTPClient):
 
         except Forbidden as exc:
             if 353 in exc.api_codes and "ct0" in exc.response.cookies:
-                return await self._request(method, url, **kwargs)
+                return await self.request(method, url, **kwargs)
             else:
                 raise
 
