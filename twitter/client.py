@@ -32,7 +32,6 @@ from .base import BaseHTTPClient
 from .account import Account, AccountStatus
 from .models import User, Tweet, Media
 from .utils import (
-    remove_at_sign,
     parse_oauth_html,
     parse_unlock_html,
     tweets_data_from_instructions,
@@ -85,7 +84,7 @@ class Client(BaseHTTPClient):
         capsolver_api_key: str = None,
         max_unlock_attempts: int = 5,
         auto_relogin: bool = True,
-        request_self_on_startup: bool = True,
+        update_account_info_on_startup: bool = True,
         **session_kwargs,
     ):
         super().__init__(**session_kwargs)
@@ -94,7 +93,7 @@ class Client(BaseHTTPClient):
         self.capsolver_api_key = capsolver_api_key
         self.max_unlock_attempts = max_unlock_attempts
         self.auto_relogin = auto_relogin
-        self.request_self_on_startup = request_self_on_startup
+        self._update_account_info_on_startup = update_account_info_on_startup
 
     async def __aenter__(self):
         await self.on_startup()
@@ -295,8 +294,8 @@ class Client(BaseHTTPClient):
                 raise
 
     async def on_startup(self):
-        if self.request_self_on_startup:
-            await self.request_user()
+        if self._update_account_info_on_startup:
+            await self.update_account_info()
 
     async def _request_oauth2_auth_code(
         self,
@@ -421,14 +420,13 @@ class Client(BaseHTTPClient):
 
         return authenticity_token, redirect_url
 
-    async def request_and_set_username(self):
+    async def _update_account_username(self):
         url = "https://twitter.com/i/api/1.1/account/settings.json"
         response, response_json = await self.request("POST", url)
         self.account.username = response_json["screen_name"]
 
-    async def _request_user(self, username: str) -> User | None:
+    async def _request_user_by_username(self, username: str) -> User | None:
         url, query_id = self._action_to_url("UserByScreenName")
-        username = remove_at_sign(username)
         variables = {
             "screen_name": username,
             "withSafetyModeUserFields": True,
@@ -458,39 +456,71 @@ class Client(BaseHTTPClient):
             return None
         return User.from_raw_data(data["data"]["user"]["result"])
 
-    async def request_user(
-        self, *, username: str = None, user_id: int | str = None
-    ) -> User | Account | None:
+    async def request_user_by_username(self, username: str) -> User | Account | None:
         """
-        Возвращает None, если задано несуществующее имя пользователя
+        :param username: Имя пользователя без знака `@`
+        :return: Пользователь, если существует, иначе None. Или собственный аккаунт, если совпадает имя пользователя.
         """
-        if username and user_id:
-            raise ValueError("Specify username or user_id, not both.")
+        if not self.account.username:
+            await self.update_account_info()
 
-        if user_id:
-            users = await self.request_users((user_id,))
-            user = users[user_id]
-        elif username:
-            user = await self._request_user(username)
-        else:
-            if not self.account.username:
-                await self.request_and_set_username()
+        user = await self._request_user_by_username(username)
 
-            user = await self._request_user(self.account.username)
-
-            if not user:
-                bad_username = self.account.username
-                await self.request_and_set_username()
-                user = await self._request_user(self.account.username)
-                logger.warning(
-                    f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
-                    f" Bad username: {bad_username}. Requested a real username."
-                )
-
+        if user and user.id == self.account.id:
             self.account.update(**user.model_dump())
-            user = self.account
+            return self.account
 
         return user
+
+    async def _request_users_by_ids(
+        self, user_ids: Iterable[str | int]
+    ) -> dict[int : User | Account]:
+        url, query_id = self._action_to_url("UsersByRestIds")
+        variables = {"userIds": list({str(user_id) for user_id in user_ids})}
+        features = {
+            "responsive_web_graphql_exclude_directive_enabled": True,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+            "responsive_web_graphql_timeline_navigation_enabled": True,
+            "verified_phone_label_enabled": False,
+        }
+        query = {"variables": variables, "features": features}
+        response, data = await self.request("GET", url, params=query)
+
+        users = {}
+        for user_data in data["data"]["users"]:
+            user_data = user_data["result"]
+            user = User.from_raw_data(user_data)
+            users[user.id] = user
+            if user.id == self.account.id:
+                users[self.account.id] = self.account
+        return users
+
+    async def request_user_by_id(self, user_id: int | str) -> User | Account | None:
+        """
+        :param user_id: ID пользователя
+        :return: Пользователь, если существует, иначе None. Или собственный аккаунт, если совпадает ID.
+        """
+        if not self.account.id:
+            await self.update_account_info()
+
+        users = await self._request_users_by_ids((user_id,))
+        user = users[user_id]
+        return user
+
+    async def request_users_by_ids(
+        self, user_ids: Iterable[str | int]
+    ) -> dict[int : User | Account]:
+        """
+        :param user_ids: ID пользователей
+        :return: Пользователи, если существует, иначе None. Или собственный аккаунт, если совпадает ID.
+        """
+        return await self._request_users_by_ids(user_ids)
+
+    async def update_account_info(self):
+        if not self.account.username:
+            await self._update_account_username()
+
+        await self.request_user_by_username(self.account.username)
 
     async def upload_image(
         self,
@@ -507,9 +537,7 @@ class Client(BaseHTTPClient):
         :return: Media
         """
         url = "https://upload.twitter.com/1.1/media/upload.json"
-
         payload = {"media_data": base64.b64encode(image)}
-
         for attempt in range(attempts):
             try:
                 response, data = await self.request(
@@ -849,7 +877,7 @@ class Client(BaseHTTPClient):
         response, response_json = await self.request("POST", url, params=params)
         return response_json
 
-    async def _request_users(
+    async def _request_users_by_action(
         self, action: str, user_id: int | str, count: int
     ) -> list[User]:
         url, query_id = self._action_to_url(action)
@@ -907,11 +935,13 @@ class Client(BaseHTTPClient):
         :param count: Количество подписчиков.
         """
         if user_id:
-            return await self._request_users("Followers", user_id, count)
+            return await self._request_users_by_action("Followers", user_id, count)
         else:
             if not self.account.id:
-                await self.request_user()
-            return await self._request_users("Followers", self.account.id, count)
+                await self.update_account_info()
+            return await self._request_users_by_action(
+                "Followers", self.account.id, count
+            )
 
     async def request_followings(
         self, user_id: int | str = None, count: int = 10
@@ -921,32 +951,13 @@ class Client(BaseHTTPClient):
         :param count: Количество подписчиков.
         """
         if user_id:
-            return await self._request_users("Following", user_id, count)
+            return await self._request_users_by_action("Following", user_id, count)
         else:
             if not self.account.id:
-                await self.request_user()
-            return await self._request_users("Following", self.account.id, count)
-
-    async def request_users(
-        self, user_ids: Iterable[str | int]
-    ) -> dict[int : User | Account]:
-        url, query_id = self._action_to_url("UsersByRestIds")
-        variables = {"userIds": list({str(user_id) for user_id in user_ids})}
-        features = {
-            "responsive_web_graphql_exclude_directive_enabled": True,
-            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
-            "responsive_web_graphql_timeline_navigation_enabled": True,
-            "verified_phone_label_enabled": False,
-        }
-        query = {"variables": variables, "features": features}
-        response, data = await self.request("GET", url, params=query)
-
-        users = {}
-        for user_data in data["data"]["users"]:
-            user_data = user_data["result"]
-            user = User.from_raw_data(user_data)
-            users[user.id] = user
-        return users
+                await self.update_account_info()
+            return await self._request_users_by_action(
+                "Following", self.account.id, count
+            )
 
     async def _request_tweet(self, tweet_id: int | str) -> Tweet:
         url, query_id = self._action_to_url("TweetDetail")
@@ -1041,7 +1052,7 @@ class Client(BaseHTTPClient):
     ) -> list[Tweet]:
         if not user_id:
             if not self.account.id:
-                await self.request_user()
+                await self.update_account_info()
             user_id = self.account.id
 
         return await self._request_tweets(user_id, count)
@@ -1110,9 +1121,6 @@ class Client(BaseHTTPClient):
         }
         response, data = await self.request("POST", url, data=payload)
         changed = data["status"] == "ok"
-        # TODO Делать это автоматически в методе request
-        auth_token = response.cookies.get("auth_token", domain=".twitter.com")
-        self.account.auth_token = auth_token
         self.account.password = password
         return changed
 
@@ -1130,7 +1138,6 @@ class Client(BaseHTTPClient):
             raise ValueError("Specify at least one param")
 
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
-        # headers = {"content-type": "application/x-www-form-urlencoded"}
         # Создаем словарь data, включая в него только те ключи, для которых значения не равны None
         payload = {
             k: v
@@ -1142,7 +1149,6 @@ class Client(BaseHTTPClient):
             ]
             if v is not None
         }
-        # response, response_json = await self.request("POST", url, headers=headers, data=payload)
         response, data = await self.request("POST", url, data=payload)
         # Проверяем, что все переданные параметры соответствуют полученным
         updated = all(
@@ -1152,7 +1158,7 @@ class Client(BaseHTTPClient):
             updated &= URL(website) == URL(
                 data["entities"]["url"]["urls"][0]["expanded_url"]
             )
-        await self.request_user()
+        await self.update_account_info()
         return updated
 
     async def establish_status(self):
@@ -1171,17 +1177,14 @@ class Client(BaseHTTPClient):
         year_visibility: Literal["self"] = "self",
     ) -> bool:
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
-        headers = {"content-type": "application/x-www-form-urlencoded"}
-        data = {
+        payload = {
             "birthdate_day": day,
             "birthdate_month": month,
             "birthdate_year": year,
             "birthdate_visibility": visibility,
             "birthdate_year_visibility": year_visibility,
         }
-        response, response_json = await self.request(
-            "POST", url, headers=headers, data=data
-        )
+        response, response_json = await self.request("POST", url, json=payload)
         birthdate_data = response_json["extended_profile"]["birthdate"]
         updated = all(
             (
@@ -1626,7 +1629,7 @@ class Client(BaseHTTPClient):
 
     async def totp_is_enabled(self):
         if not self.account.id:
-            await self.request_user()
+            await self.update_account_info()
 
         url = f"https://twitter.com/i/api/1.1/strato/column/User/{self.account.id}/account-security/twoFactorAuthSettings2"
         response, data = await self.request("GET", url)
