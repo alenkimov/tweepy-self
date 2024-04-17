@@ -878,7 +878,11 @@ class Client(BaseHTTPClient):
         return response_json
 
     async def _request_users_by_action(
-        self, action: str, user_id: int | str, count: int
+        self,
+        action: str,
+        user_id: int | str,
+        count: int,
+        cursor: str = None,
     ) -> list[User]:
         url, query_id = self._action_to_url(action)
         variables = {
@@ -886,6 +890,8 @@ class Client(BaseHTTPClient):
             "count": count,
             "includePromotedContent": False,
         }
+        if cursor:
+            variables["cursor"] = cursor
         features = {
             "rweb_lists_timeline_redesign_enabled": True,
             "responsive_web_graphql_exclude_directive_enabled": True,
@@ -928,35 +934,45 @@ class Client(BaseHTTPClient):
         return users
 
     async def request_followers(
-        self, user_id: int | str = None, count: int = 10
+        self,
+        user_id: int | str = None,
+        count: int = 20,
+        cursor: str = None,
     ) -> list[User]:
         """
         :param user_id: Текущий пользователь, если не передан ID иного пользователя.
         :param count: Количество подписчиков.
         """
         if user_id:
-            return await self._request_users_by_action("Followers", user_id, count)
+            return await self._request_users_by_action(
+                "Followers", user_id, count, cursor
+            )
         else:
             if not self.account.id:
                 await self.update_account_info()
             return await self._request_users_by_action(
-                "Followers", self.account.id, count
+                "Followers", self.account.id, count, cursor
             )
 
     async def request_followings(
-        self, user_id: int | str = None, count: int = 10
+        self,
+        user_id: int | str = None,
+        count: int = 20,
+        cursor: str = None,
     ) -> list[User]:
         """
         :param user_id: Текущий пользователь, если не передан ID иного пользователя.
         :param count: Количество подписчиков.
         """
         if user_id:
-            return await self._request_users_by_action("Following", user_id, count)
+            return await self._request_users_by_action(
+                "Following", user_id, count, cursor
+            )
         else:
             if not self.account.id:
                 await self.update_account_info()
             return await self._request_users_by_action(
-                "Following", self.account.id, count
+                "Following", self.account.id, count, cursor
             )
 
     async def _request_tweet(self, tweet_id: int | str) -> Tweet:
@@ -1000,7 +1016,9 @@ class Client(BaseHTTPClient):
         tweet_data = tweets_data_from_instructions(instructions)[0]
         return Tweet.from_raw_data(tweet_data)
 
-    async def _request_tweets(self, user_id: int | str, count: int = 20) -> list[Tweet]:
+    async def _request_tweets(
+        self, user_id: int | str, count: int = 20, cursor: str = None
+    ) -> list[Tweet]:
         url, query_id = self._action_to_url("UserTweets")
         variables = {
             "userId": str(user_id),
@@ -1010,6 +1028,8 @@ class Client(BaseHTTPClient):
             "withVoice": True,
             "withV2Timeline": True,
         }
+        if cursor:
+            variables["cursor"] = cursor
         features = {
             "responsive_web_graphql_exclude_directive_enabled": True,
             "verified_phone_label_enabled": False,
@@ -1046,16 +1066,14 @@ class Client(BaseHTTPClient):
         return await self._request_tweet(tweet_id)
 
     async def request_tweets(
-        self,
-        user_id: int | str = None,
-        count: int = 20,
+        self, user_id: int | str = None, count: int = 20, cursor: str = None
     ) -> list[Tweet]:
         if not user_id:
             if not self.account.id:
                 await self.update_account_info()
             user_id = self.account.id
 
-        return await self._request_tweets(user_id, count)
+        return await self._request_tweets(user_id, count, cursor)
 
     async def _update_profile_image(
         self, type: Literal["banner", "image"], media_id: str | int
