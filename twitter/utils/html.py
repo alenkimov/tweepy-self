@@ -21,9 +21,11 @@ def parse_oauth_html(html: str) -> tuple[str | None, str | None, str | None]:
     return authenticity_token, redirect_url, redirect_after_login_url
 
 
-def parse_unlock_html(html: str) -> tuple[str | None, str | None, bool, bool, bool]:
+def parse_unlock_html(
+    html: str,
+) -> tuple[str | None, str | None, bool, bool, bool, bool]:
     """
-    :return: authenticity_token, assignment_token, needs_unlock, start_button, finish_button
+    :return: authenticity_token, assignment_token, needs_unlock, start_button, finish_button, delete_button
     """
     soup = BeautifulSoup(html, "lxml")
     authenticity_token_element = soup.find("input", {"name": "authenticity_token"})
@@ -38,10 +40,12 @@ def parse_unlock_html(html: str) -> tuple[str | None, str | None, bool, bool, bo
     needs_unlock = bool(verification_string)
     start_button = bool(soup.find("input", value="Start"))
     finish_button = bool(soup.find("input", value="Continue to X"))
+    delete_button = bool(soup.find("input", value="Delete"))
     return (
         authenticity_token,
         assignment_token,
         needs_unlock,
         start_button,
         finish_button,
+        delete_button,
     )

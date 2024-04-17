@@ -1291,6 +1291,8 @@ class Client(BaseHTTPClient):
             payload["verification_string"] = verification_string
             payload["language_code"] = "en"
 
+        # TODO ui_metrics
+
         return await self.request("POST", self._CAPTCHA_URL, data=payload, bearer=False)
 
     async def unlock(self):
@@ -1304,8 +1306,22 @@ class Client(BaseHTTPClient):
             needs_unlock,
             start_button,
             finish_button,
+            delete_button,
         ) = parse_unlock_html(html)
         attempt = 1
+
+        if delete_button:
+            response, html = await self._confirm_unlock(
+                authenticity_token, assignment_token
+            )
+            (
+                authenticity_token,
+                assignment_token,
+                needs_unlock,
+                start_button,
+                finish_button,
+                delete_button,
+            ) = parse_unlock_html(html)
 
         if start_button or finish_button:
             response, html = await self._confirm_unlock(
@@ -1317,6 +1333,7 @@ class Client(BaseHTTPClient):
                 needs_unlock,
                 start_button,
                 finish_button,
+                delete_button,
             ) = parse_unlock_html(html)
 
         funcaptcha = {
@@ -1363,6 +1380,7 @@ class Client(BaseHTTPClient):
                 needs_unlock,
                 start_button,
                 finish_button,
+                delete_button,
             ) = parse_unlock_html(html)
 
             if finish_button:
@@ -1375,6 +1393,7 @@ class Client(BaseHTTPClient):
                     needs_unlock,
                     start_button,
                     finish_button,
+                    delete_button,
                 ) = parse_unlock_html(html)
 
             attempt += 1
