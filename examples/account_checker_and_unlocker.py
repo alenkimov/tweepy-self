@@ -15,10 +15,9 @@ from better_proxy import Proxy
 from twitter.utils import load_lines, write_lines
 import twitter
 
-LOGGING_LEVEL = "INFO"
-logger.enable("twitter")
 logger.remove()
-logger.add(sys.stderr, level=LOGGING_LEVEL)
+logger.add(sys.stderr, level="INFO")
+logger.enable("twitter")
 
 
 TwitterAccountWithAdditionalData = tuple[str, twitter.Account]
