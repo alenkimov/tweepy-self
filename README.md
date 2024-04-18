@@ -135,7 +135,7 @@ if await twitter_client.totp_is_enabled():
 await twitter_client.enable_totp()
 ```
 
-#### Логин, если включен TOTP (2F)
+#### Логин, если включен TOTP (2FA)
 ```python
 import twitter
 
