@@ -6,8 +6,6 @@
 
 A modern, easy to use, feature-rich, and async ready API wrapper for Twitter's user API written in Python.
 
-- Docs (soon)
-
 More libraries of the family:
 - [better-proxy](https://github.com/alenkimov/better_proxy)
 - [better-web3](https://github.com/alenkimov/better_web3)
@@ -28,108 +26,146 @@ pip install tweepy-self
 import asyncio
 import twitter
 
-account = twitter.Account(auth_token="auth_token")
+twitter_account = twitter.Account(auth_token="auth_token")
 
 async def main():
-    async with twitter.Client(account) as twitter_client:
-        await twitter_client.tweet("Hello, tweepy-self! <3")
+    async with twitter.Client(twitter_account) as twitter_client:
+        print(f"Logged in as @{twitter_account.username} (id={twitter_account.id})")
+        tweet = await twitter_client.tweet("Hello tweepy-self! <3")
+        print(tweet)
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-## More
+## Документация
+### Некоторые истины
+Имена пользователей нужно передавать БЕЗ знака `@`.
+Чтобы наверняка убрать этот знак можно передать имя пользователя в функцию `twitter.utils.remove_at_sign()`
+
 Automating user accounts is against the Twitter ToS. This library is a proof of concept and I cannot recommend using it. Do so at your own risk
 
-## Документация (устаревшая)
-`Код ушел немного дальше, чем эта документация.`
+### Как включить логирование
+```python
+import sys
+from loguru import logger
 
-Библиотека позволяет работать с неофициальным API Twitter, а именно:
-- Логин
-- Анлок
-- Привязывать сервисы (приложения).
-- Устанавливать статус аккаунта (бан, лок).
-- Загружать изображения на сервер и изменять баннер и аватарку.
-- Изменять данные о пользователе: имя, описание профиля и другое.
-- Изменять имя пользователя и пароль.
-- Запрашивать информацию о подписчиках.
-- Запрашивать некоторую информацию о пользователе (количество подписчиков и другое).
-- Голосовать.
-- Подписываться и отписываться.
-- Лайкать и дизлайкать.
-- Твиттить, ретвиттить с изображением и без.
-- Закреплять твиты.
-- Запрашивать твиты пользователей.
-- Удалять твиты.
-- И другое.
+logger.remove()
+logger.add(sys.stdout, level="INFO")
+logger.enable("twitter")
+```
 
-#### Статус аккаунта
+`level="DEBUG"` позволяет увидеть информацию обо всех запросах.
+
+### Аккаунт
 После любого взаимодействия с Twitter устанавливается статус аккаунта:
-- `BAD_TOKEN` - Неверный токен.
-- `UNKNOWN` - Статус аккаунта не установлен.
-- `SUSPENDED` - Действие учетной записи приостановлено (бан).
-- `LOCKED` - Учетная запись заморожена (лок) (требуется прохождение капчи).
+- `UNKNOWN` - Статус аккаунта не установлен. Это статус по умолчанию.
+- `BAD_TOKEN` - Неверный или мертвый токен.
+- `SUSPENDED` - Действие учетной записи приостановлено. Тем не менее возможен запрос данных, а также авторизация через OAuth и OAuth2.
+- `LOCKED` - Учетная запись заморожена (лок). Для разморозки (анлок) требуется прохождение капчи (funcaptcha).
+- `CONSENT_LOCKED` - Учетная запись заморожена (лок). Условия для разморозки неизвестны.
 - `GOOD` - Аккаунт в порядке.
 
 Не каждое взаимодействие с Twitter достоверно определяет статус аккаунта.
-Например, простой запрос данных об аккаунте честно вернет данные, даже если ваш аккаунт заморожен.
+Например, простой запрос данных об аккаунте честно вернет данные, даже если действие вашей учетной записи приостановлено.
 
-Для достоверной установки статуса аккаунта используйте метод `establish_status()`
+Для достоверной установки статуса аккаунта используйте метод `Client.establish_status()`
 
-### Примеры работы
-Запрос информации о пользователе:
+### Настройка клиента
+Класс `twitter.Client` может быть сконфигурирован перед работой. Он принимает в себя следующие параметры:
+- `wait_on_rate_limit` Если включено, то при достижении Rate Limit будет ждать, вместо того, чтобы выбрасывать исключение. Включено по умолчанию.
+- `capsolver_api_key` API ключ сервиса [CapSolver](https://dashboard.capsolver.com/passport/register?inviteCode=m-aE3NeBGZLU). Нужен для автоматической разморозки аккаунта.
+- `max_unlock_attempts` Максимальное количество попыток разморозки аккаунта. По умолчанию: 5.
+- `auto_relogin` Если включено, то при невалидном токене (`BAD_TOKEN`) и предоставленных данных для авторизации (имя пользователя, пароль и totp_secret) будет произведен автоматический релогин (замена токена). Включено по умолчанию.
+- `update_account_info_on_startup` Если включено, то на старте будет автоматически запрошена информация об аккаунте. Включено по умолчанию.
+- `**session_kwargs` Любые параметры, которые может принимать сессия `curl_cffi.requests.AsyncSession`. Например, можно передать параметр `proxy`.
 
+Пример настройки клиента:
 ```python
-# Запрос информации о текущем пользователе:
-me = await twitter_client.request_user()
-print(f"[{account.short_auth_token}] {me}")
-print(f"Аккаунт создан: {me.created_at}")
-print(f"Following (подписан ты): {me.followings_count}")
-print(f"Followers (подписаны на тебя): {me.followers_count}")
-print(f"Прочая информация: {me.raw_data}")
-
-# Запрос информации об ином пользователе:
-elonmusk = await twitter.request_user("@elonmusk")
-print(elonmusk)
+async with twitter.Client(
+    twitter_account,
+    capsolver_api_key="CAP-00000000000000000000000000000000",
+    proxy="http://login:password@ip:port",  # Можно передавать в любом формате, так как используется библиотека better_proxy
+) as twitter_client:
+    ...
 ```
 
-Смена имени пользователя и пароля:
+### Доступные методы
+Список всех методов.
 
+#### Запрос информации о собственном аккаунте
 ```python
-account = twitter.Account("auth_token", password="password")
-...
-await twitter_client.change_username("new_username")
-await twitter_client.request_user()
-print(f"New username: {account.username}")
-
-await twitter_client.change_password("new_password")
-print(f"New password: {account.password}")
-print(f"New auth_token: {account.auth_token}")
+twitter_client.update_account_info()
+print(twitter_client.account)
 ```
 
-Смена данных профиля:
+#### Запрос пользователя по username или по ID
+
+```python
+bro = twitter_client.request_user_by_username(bro_username)
+bro = twitter_client.request_user_by_id(bro_id)
+bros = twitter_client.request_users_by_ids([bro1_id, bro2_id, ...])
+```
+
+####  Загрузка изображения на сервер, смена аватарки и баннера
+```python
+image = open("image.png", "rb").read()
+media = await twitter_client.upload_image(image)
+avatar_image_url = await twitter_client.update_profile_avatar(media.id)
+banner_image_url = await twitter_client.update_profile_banner(media.id)
+```
+
+#### Изменения данных профиля
 ```python
 await twitter_client.update_birthdate(day=1, month=12, year=2000)
 await twitter_client.update_profile(  # Locks account!
     name="New Name",
     description="New description",
     location="New York",
-    website="https://github.com/alenkimov/better_automation",
+    website="https://github.com/alenkimov/tweepy-self",
 )
 ```
 
-Загрузка изображений и смена аватара и баннера:
+#### Включение TOTP (2FA)
 ```python
-image = open(f"image.png", "rb").read()
-media_id = await twitter_client.upload_image(image)
-avatar_image_url = await twitter_client.update_profile_avatar(media_id)
-banner_image_url = await twitter_client.update_profile_banner(media_id)
+if await twitter_client.totp_is_enabled():
+    print(f"TOTP уже включен.")
+    return
+
+await twitter_client.enable_totp()
 ```
 
-Привязка сервиса (приложения):
+#### Логин, если включен TOTP (2F)
+```python
+import twitter
 
+twitter_account = twitter.Account(auth_token="...", username="...", password="...", totp_secret="...")
+await twitter_client.login()
+print(f"Logged in! New auth_token: {twitter_account.auth_token}")
+```
+
+#### Смена имени пользователя и пароля
+```python
+twitter_account = twitter.Account("auth_token", password="password")
+...
+await twitter_client.change_username("new_username")
+await twitter_client.request_user()
+print(f"New username: {twitter_account.username}")
+
+await twitter_client.change_password("new_password")
+print(f"New password: {twitter_account.password}")
+print(f"New auth_token: {twitter_account.auth_token}")
+```
+
+#### Авторизация с OAuth
+```python
+auth_code = await twitter_client.oauth(oauth_token, **oauth_params)
+```
+
+#### Авторизация с OAuth2
 ```python
 # Изучите запросы сервиса и найдите подобные данные для авторизации (привязки):
-bind_data = {
+oauth2_data = {
     'response_type': 'code',
     'client_id': 'TjFVQm52ZDFGWEtNT0tKaktaSWU6MTpjaQ',
     'redirect_uri': 'https://waitlist.lens.xyz/tw/',
@@ -139,19 +175,18 @@ bind_data = {
     'code_challenge_method': 'plain'
 }
 
-bind_code = await twitter_client.oauth_2(**bind_data)
+auth_code = await twitter_client.oauth2(**oauth2_data)
 # Передайте код авторизации (привязки) сервису.
 # Сервис также может потребовать state, если он динамический.
 ```
 
-Отправка сообщения:
-
+#### Отправка сообщения:
 ```python
-bro = await twitter_client.request_user("@username")
+bro = await twitter_client.request_user("bro_username")
 await twitter_client.send_message(bro.id, "I love you!")
 ```
 
-Запрос входящих сообщений:
+#### Запрос входящих сообщений:
 ```python
 messages = await twitter_client.request_messages()
 for message in messages:
@@ -162,14 +197,17 @@ for message in messages:
     print(f"[id  {sender_id}] -> [id {recipient_id}]: {text}")
 ```
 
-Другие методы:
+Так как мне почти не приходилось работать с сообщениями, я еще не сделал для этого удобных моделей.
+Поэтому приходится работать со словарем.
+
+#### Пост (твит)
 ```python
-# Выражение любви через твит
-tweet_id = await twitter_client.tweet("I love YOU! !!!!1!1")
-print(f"Любовь выражена! Tweet id: {tweet_id}")
+tweet = await twitter_client.tweet("I love you tweepy-self! <3")
+print(f"Любовь выражена! Tweet id: {tweet.id}")
+```
 
-print(f"Tweet is pined: {await twitter_client.pin_tweet(tweet_id)}")
-
+#### Лайк, репост (ретвит), коммент (реплай)
+```python
 # Лайк
 print(f"Tweet {tweet_id} is liked: {await twitter_client.like(tweet_id)}")
 
@@ -178,22 +216,61 @@ print(f"Tweet {tweet_id} is retweeted. Tweet id: {await twitter_client.repost(tw
 
 # Коммент (реплай)
 print(f"Tweet {tweet_id} is replied. Reply id: {await twitter_client.reply(tweet_id, 'tem razão')}")
+```
 
+#### Цитата
+```python
+tweet_url = 'https://twitter.com/CreamIce_Cone/status/1691735090529976489'
+# Цитата (Quote tweet)
+quote_tweet_id = await twitter_client.quote(tweet_url, 'oh....')
+print(f"Quoted! Tweet id: {quote_tweet_id}")
+```
+
+#### Подписка и отписка
+```python
 # Подписываемся на Илона Маска
 print(f"@{elonmusk.username} is followed: {await twitter_client.follow(elonmusk.id)}")
 
 # Отписываемся от Илона Маска
 print(f"@{elonmusk.username} is unfollowed: {await twitter_client.unfollow(elonmusk.id)}")
-
-tweet_url = 'https://twitter.com/CreamIce_Cone/status/1691735090529976489'
-# Цитата (Quote tweet)
-quote_tweet_id = await twitter_client.quote(tweet_url, 'oh....')
-print(f"Quoted! Tweet id: {quote_tweet_id}")
-
-# Запрашиваем первых трех подписчиков
-# (Параметр count по каким-то причинам работает некорректно)
-followers = await twitter_client.request_followers(count=20)
-print("Твои подписчики:")
-for follower in followers:
-    print(follower)
 ```
+
+#### Закрепление твита
+```python
+pinned = await twitter_client.pin_tweet(tweet_id)
+print(f"Tweet is pined: {pinned}")
+```
+
+#### Запрос своих и чужих подписчиков
+```python
+
+followers = await twitter_client.request_followers()
+print("Твои подписчики:")
+for user in followers:
+    print(user)
+    
+followings = await twitter_client.request_followings()
+print(f"Ты подписан на:")
+for user in followings:
+    print(user)
+
+bro_followers = await twitter_client.request_followers(bro_id)
+print(f"Подписчики твоего бро (id={bro_id}):")
+for user in bro_followers:
+    print(user)
+
+bro_followings = await twitter_client.request_followings(bro_id)
+print(f"На твоего бро (id={bro_id}) подписаны:")
+for user in bro_followings:
+    print(user)
+```
+
+#### Голосование
+```python
+vote_data = await twitter_client.vote(tweet_id, card_id, choice_number)
+votes_count = vote_data["card"]["binding_values"]["choice1_count"]["string_value"]
+print(f"Votes: {votes_count}")
+```
+
+Так как мне почти не приходилось работать с голосованиями, я еще не сделал для этого удобных моделей.
+Поэтому приходится работать со словарем.
