@@ -1654,16 +1654,34 @@ class Client(BaseHTTPClient):
                 flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token, self.account.get_totp_code())
                 # fmt: on
             except HTTPException as exc:
-                if 399 in exc.api_codes:  # Bad totp_secret
-                    if not self.account.totp_secret:
+                if 399 in exc.api_codes:
+                    logger.warning(
+                        f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                        f" Bad TOTP secret!"
+                    )
+                    if not self.account.backup_code:
                         raise TwitterException(
-                            f"Failed to login. Task id: LoginTwoFactorAuthChallenge"
+                            f"Failed to login. Task id: LoginTwoFactorAuthChallenge. No backup code!"
                         )
 
                     # Enter backup code
                     # fmt: off
                     flow_token, subtasks = await self._login_two_factor_auth_choose_method(flow_token)
-                    flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token, self.account.backup_code)
+                    try:
+                        flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token, self.account.backup_code)
+                    except HTTPException as exc:
+                        if 399 in exc.api_codes:
+                            logger.warning(
+                                f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                                f" Bad backup code!"
+                            )
+                            raise TwitterException(
+                                f"Failed to login. Task id: LoginTwoFactorAuthChallenge. Bad backup_code!"
+                            )
+                        else:
+                            raise
+
+                    update_backup_code = True
                     # fmt: on
                 else:
                     raise
@@ -1689,7 +1707,10 @@ class Client(BaseHTTPClient):
 
         if update_backup_code:
             await self.update_backup_code()
-            logger.warning(f"Requested new backup code!")
+            logger.warning(
+                f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                f" Requested new backup code!"
+            )
             # TODO Также обновлять totp_secret
 
         await self.establish_status()
