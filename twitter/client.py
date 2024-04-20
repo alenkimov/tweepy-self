@@ -296,6 +296,7 @@ class Client(BaseHTTPClient):
     async def on_startup(self):
         if self._update_account_info_on_startup:
             await self.update_account_info()
+            await self.establish_status()
 
     async def _request_oauth2_auth_code(
         self,
