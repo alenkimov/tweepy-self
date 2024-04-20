@@ -1555,18 +1555,27 @@ class Client(BaseHTTPClient):
         ]
         return await self._send_task(flow_token, subtask_inputs, auth=False)
 
-    async def _login_two_factor_auth_challenge(self, flow_token):
-        if not self.account.totp_secret:
-            raise TwitterException(
-                f"Failed to login. Task id: LoginTwoFactorAuthChallenge"
-            )
-
+    async def _login_two_factor_auth_challenge(self, flow_token, value: str):
         subtask_inputs = [
             {
                 "subtask_id": "LoginTwoFactorAuthChallenge",
                 "enter_text": {
-                    "text": self.account.get_totp_code(),
+                    "text": value,
                     "link": "next_link",
+                },
+            }
+        ]
+        return await self._send_task(flow_token, subtask_inputs, auth=False)
+
+    async def _login_two_factor_auth_choose_method(
+        self, flow_token: str, choices: Iterable[int] = (0,)
+    ):
+        subtask_inputs = [
+            {
+                "subtask_id": "LoginTwoFactorAuthChooseMethod",
+                "choice_selection": {
+                    "link": "next_link",
+                    "selected_choices": [str(choice) for choice in choices],
                 },
             }
         ]
@@ -1606,7 +1615,9 @@ class Client(BaseHTTPClient):
         guest_token = re.search(r"gt\s?=\s?\d+", response.text)[0].split("=")[1]
         return guest_token
 
-    async def _login(self):
+    async def _login(self) -> bool:
+        update_backup_code = False
+
         guest_token = await self._request_guest_token()
         self._session.headers["X-Guest-Token"] = guest_token
 
@@ -1621,7 +1632,7 @@ class Client(BaseHTTPClient):
 
         if "LoginEnterAlternateIdentifierSubtask" in subtask_ids:
             if not self.account.username:
-                raise ValueError("No username to relogin")
+                raise TwitterException("Failed to login: no username to relogin")
 
         flow_token, subtasks = await self._login_enter_password(flow_token)
         flow_token, subtasks = await self._account_duplication_check(flow_token)
@@ -1633,11 +1644,32 @@ class Client(BaseHTTPClient):
             raise TwitterException(f"Failed to login: email verification!")
 
         if "LoginTwoFactorAuthChallenge" in subtask_ids:
-            flow_token, subtasks = await self._login_two_factor_auth_challenge(
-                flow_token
-            )
+            if not self.account.totp_secret:
+                raise TwitterException(
+                    f"Failed to login. Task id: LoginTwoFactorAuthChallenge. No totp_secret!"
+                )
+
+            try:
+                # fmt: off
+                flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token, self.account.get_totp_code())
+                # fmt: on
+            except HTTPException as exc:
+                if 399 in exc.api_codes:  # Bad totp_secret
+                    if not self.account.totp_secret:
+                        raise TwitterException(
+                            f"Failed to login. Task id: LoginTwoFactorAuthChallenge"
+                        )
+
+                    # Enter backup code
+                    # fmt: off
+                    flow_token, subtasks = await self._login_two_factor_auth_choose_method(flow_token)
+                    flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token, self.account.backup_code)
+                    # fmt: on
+                else:
+                    raise
 
         await self._finish_task(flow_token)
+        return update_backup_code
 
     async def relogin(self):
         """
@@ -1652,8 +1684,14 @@ class Client(BaseHTTPClient):
         if not self.account.password:
             raise ValueError("No password")
 
-        await self._login()
+        update_backup_code = await self._login()
         await self._viewer()
+
+        if update_backup_code:
+            await self.update_backup_code()
+            logger.warning(f"Requested new backup code!")
+            # TODO Также обновлять totp_secret
+
         await self.establish_status()
 
     async def login(self):
