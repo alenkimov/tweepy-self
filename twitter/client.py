@@ -1517,8 +1517,8 @@ class Client(BaseHTTPClient):
                             "key": "user_identifier",
                             "response_data": {
                                 "text_data": {
-                                    "result": self.account.email
-                                    or self.account.username
+                                    "result": self.account.username
+                                    or self.account.email
                                 }
                             },
                         }
@@ -1611,6 +1611,13 @@ class Client(BaseHTTPClient):
         flow_token, subtasks = await self._request_login_tasks()
         for _ in range(2):
             flow_token, subtasks = await self._login_enter_user_identifier(flow_token)
+
+        subtask_ids = [subtask["subtask_id"] for subtask in subtasks]
+
+        if "LoginEnterAlternateIdentifierSubtask" in subtask_ids:
+            if not self.account.username:
+                raise ValueError("No username to relogin")
+
         flow_token, subtasks = await self._login_enter_password(flow_token)
         flow_token, subtasks = await self._account_duplication_check(flow_token)
 
