@@ -190,7 +190,6 @@ class Client(BaseHTTPClient):
                     raise Locked(exc, self.account)
                 raise exc
 
-            self.account.status = AccountStatus.GOOD
             return response, data
 
         if response.status_code == 400:
@@ -1184,6 +1183,7 @@ class Client(BaseHTTPClient):
         url = "https://twitter.com/i/api/1.1/account/update_profile.json"
         try:
             await self.request("POST", url, auto_unlock=False, auto_relogin=False)
+            self.account.status = AccountStatus.GOOD
         except BadAccount:
             pass
 
