@@ -1422,6 +1422,11 @@ class Client(BaseHTTPClient):
 
         await self.establish_status()
 
+    async def update_backup_code(self):
+        url = "https://api.twitter.com/1.1/account/backup_code.json"
+        response, response_json = await self.request("GET", url)
+        self.account.backup_code = response_json["codes"][0]
+
     async def _task(self, **kwargs):
         """
         :return: flow_token, subtasks
