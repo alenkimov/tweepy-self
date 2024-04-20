@@ -1628,6 +1628,12 @@ class Client(BaseHTTPClient):
         await self._finish_task(flow_token)
 
     async def relogin(self):
+        """
+        Может вызвать следующую ошибку:
+            twitter.errors.BadRequest: (response status: 400)
+            (code 398) Can't complete your signup right now.
+        Причина возникновения ошибки неизвестна. Не забудьте обработать ее.
+        """
         if not self.account.email and not self.account.username:
             raise ValueError("No email or username")
 
