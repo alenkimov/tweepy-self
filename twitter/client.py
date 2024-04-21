@@ -1658,28 +1658,37 @@ class Client(BaseHTTPClient):
         flow_token, subtasks = await self._login_enter_password(flow_token)
         flow_token, subtasks = await self._account_duplication_check(flow_token)
 
-        subtask_ids = {subtask.id for subtask in subtasks}
-        if "LoginAcid" in subtask_ids:
-            if not self.account.email:
-                raise TwitterException(
-                    f"Failed to login. Task id: LoginAcid. No email!"
-                )
-
-            try:
-                # fmt: off
-                flow_token, subtasks = await self._login_acid(flow_token, self.account.email)
-                # fmt: on
-            except HTTPException as exc:
-                if 399 in exc.api_codes:
-                    logger.warning(
-                        f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
-                        f" Bad email!"
-                    )
+        for subtask in subtasks:
+            if subtask.id == "LoginAcid":
+                if not self.account.email:
                     raise TwitterException(
-                        f"Failed to login. Task id: LoginAcid. Bad email!"
+                        f"Failed to login. Task id: LoginAcid." f" No email!"
                     )
-                else:
-                    raise
+
+                if subtask.primary_text == "Check your email":
+                    raise TwitterException(
+                        f"Failed to login. Task id: LoginAcid."
+                        f" Email verification required!"
+                        f" No IMAP handler for this version of library :<"
+                    )
+
+                try:
+                    # fmt: off
+                    flow_token, subtasks = await self._login_acid(flow_token, self.account.email)
+                    # fmt: on
+                except HTTPException as exc:
+                    if 399 in exc.api_codes:
+                        logger.warning(
+                            f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                            f" Bad email!"
+                        )
+                        raise TwitterException(
+                            f"Failed to login. Task id: LoginAcid. Bad email!"
+                        )
+                    else:
+                        raise
+
+        subtask_ids = {subtask.id for subtask in subtasks}
 
         if "LoginTwoFactorAuthChallenge" in subtask_ids:
             if not self.account.totp_secret:
