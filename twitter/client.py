@@ -30,7 +30,7 @@ from .errors import (
 from .utils import to_json
 from .base import BaseHTTPClient
 from .account import Account, AccountStatus
-from .models import User, Tweet, Media
+from .models import User, Tweet, Media, Subtask
 from .utils import (
     parse_oauth_html,
     parse_unlock_html,
@@ -1377,7 +1377,8 @@ class Client(BaseHTTPClient):
             solution = await FunCaptcha(**funcaptcha).aio_captcha_handler()
             if solution.errorId:
                 logger.warning(
-                    f"{self.account} Failed to solve funcaptcha:"
+                    f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                    f"Failed to solve funcaptcha:"
                     f"\n\tUnlock attempt: {attempt}/{self.max_unlock_attempts}"
                     f"\n\tError ID: {solution.errorId}"
                     f"\n\tError code: {solution.errorCode}"
@@ -1427,18 +1428,46 @@ class Client(BaseHTTPClient):
         response, response_json = await self.request("GET", url)
         self.account.backup_code = response_json["codes"][0]
 
-    async def _task(self, **kwargs):
+    async def _send_raw_subtask(self, **request_kwargs) -> tuple[str, list[Subtask]]:
         """
-        :return: flow_token, subtasks
+        :return: flow_token and subtasks
         """
         url = "https://api.twitter.com/1.1/onboarding/task.json"
-        response, response_json = await self.request("POST", url, **kwargs)
-        return response_json["flow_token"], response_json["subtasks"]
+        response, data = await self.request("POST", url, **request_kwargs)
+        subtasks = [
+            Subtask.from_raw_data(subtask_data) for subtask_data in data["subtasks"]
+        ]
+        log_message = (
+            f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+            f" Requested subtasks:"
+        )
+        for subtask in subtasks:
+            log_message += f"\n\t{subtask.id}"
+            if subtask.primary_text:
+                log_message += f"\n\tPrimary text: {subtask.primary_text}"
+            if subtask.secondary_text:
+                log_message += f"\n\tSecondary text: {subtask.secondary_text}"
+            if subtask.detail_text:
+                log_message += f"\n\tDetail text: {subtask.detail_text}"
+        logger.debug(log_message)
+        return data["flow_token"], subtasks
 
-    async def _request_login_tasks(self):
-        """
-        :return: flow_token, subtask_ids
-        """
+    async def _complete_subtask(
+        self,
+        flow_token: str,
+        inputs: list[dict],
+        **request_kwargs,
+    ) -> tuple[str, list[Subtask]]:
+        payload = request_kwargs["json"] = request_kwargs.get("json") or {}
+        payload.update(
+            {
+                "flow_token": flow_token,
+                "subtask_inputs": inputs,
+            }
+        )
+        return await self._send_raw_subtask(**request_kwargs)
+
+    async def _request_login_tasks(self) -> tuple[str, list[Subtask]]:
         params = {
             "flow_name": "login",
         }
@@ -1493,30 +1522,14 @@ class Client(BaseHTTPClient):
                 "web_modal": 1,
             },
         }
-        return await self._task(params=params, json=payload, auth=False)
+        return await self._send_raw_subtask(params=params, json=payload, auth=False)
 
-    async def _send_task(self, flow_token: str, subtask_inputs: list[dict], **kwargs):
-        payload = kwargs["json"] = kwargs.get("json") or {}
-        payload.update(
-            {
-                "flow_token": flow_token,
-                "subtask_inputs": subtask_inputs,
-            }
-        )
-        return await self._task(**kwargs)
-
-    async def _finish_task(self, flow_token):
-        payload = {
-            "flow_token": flow_token,
-            "subtask_inputs": [],
-        }
-        return await self._task(json=payload)
-
-    async def _login_enter_user_identifier(self, flow_token):
-        subtask_inputs = [
+    async def _login_enter_user_identifier(self, flow_token: str):
+        inputs = [
             {
                 "subtask_id": "LoginEnterUserIdentifierSSO",
                 "settings_list": {
+                    "link": "next_link",
                     "setting_responses": [
                         {
                             "key": "user_identifier",
@@ -1528,49 +1541,48 @@ class Client(BaseHTTPClient):
                             },
                         }
                     ],
-                    "link": "next_link",
                 },
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs, auth=False)
+        return await self._complete_subtask(flow_token, inputs, auth=False)
 
-    async def _login_enter_password(self, flow_token):
-        subtask_inputs = [
+    async def _login_enter_password(self, flow_token: str):
+        inputs = [
             {
                 "subtask_id": "LoginEnterPassword",
                 "enter_password": {
-                    "password": self.account.password,
                     "link": "next_link",
+                    "password": self.account.password,
                 },
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs, auth=False)
+        return await self._complete_subtask(flow_token, inputs, auth=False)
 
     async def _account_duplication_check(self, flow_token):
-        subtask_inputs = [
+        inputs = [
             {
                 "subtask_id": "AccountDuplicationCheck",
                 "check_logged_in_account": {"link": "AccountDuplicationCheck_false"},
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs, auth=False)
+        return await self._complete_subtask(flow_token, inputs, auth=False)
 
     async def _login_two_factor_auth_challenge(self, flow_token, value: str):
-        subtask_inputs = [
+        inputs = [
             {
                 "subtask_id": "LoginTwoFactorAuthChallenge",
                 "enter_text": {
-                    "text": value,
                     "link": "next_link",
+                    "text": value,
                 },
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs, auth=False)
+        return await self._complete_subtask(flow_token, inputs, auth=False)
 
     async def _login_two_factor_auth_choose_method(
         self, flow_token: str, choices: Iterable[int] = (0,)
     ):
-        subtask_inputs = [
+        inputs = [
             {
                 "subtask_id": "LoginTwoFactorAuthChooseMethod",
                 "choice_selection": {
@@ -1579,7 +1591,20 @@ class Client(BaseHTTPClient):
                 },
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs, auth=False)
+        return await self._complete_subtask(flow_token, inputs, auth=False)
+
+    async def _login_acid(
+        self,
+        flow_token: str,
+        value: str,
+    ):
+        inputs = [
+            {
+                "subtask_id": "LoginAcid",
+                "enter_text": {"text": value, "link": "next_link"},
+            }
+        ]
+        return await self._complete_subtask(flow_token, inputs, auth=False)
 
     async def _viewer(self):
         url, query_id = self._action_to_url("Viewer")
@@ -1596,9 +1621,9 @@ class Client(BaseHTTPClient):
         }
         variables = {"withCommunitiesMemberships": True}
         params = {
-            "features": to_json(features),
-            "fieldToggles": to_json(field_toggles),
-            "variables": to_json(variables),
+            "features": features,
+            "fieldToggles": field_toggles,
+            "variables": variables,
         }
         return await self.request("GET", url, params=params)
 
@@ -1621,15 +1646,11 @@ class Client(BaseHTTPClient):
         guest_token = await self._request_guest_token()
         self._session.headers["X-Guest-Token"] = guest_token
 
-        # Можно не устанавливать, так как твиттер сам вернет этот токен
-        # self._session.cookies["gt"] = guest_token
-
         flow_token, subtasks = await self._request_login_tasks()
         for _ in range(2):
             flow_token, subtasks = await self._login_enter_user_identifier(flow_token)
 
-        subtask_ids = [subtask["subtask_id"] for subtask in subtasks]
-
+        subtask_ids = {subtask.id for subtask in subtasks}
         if "LoginEnterAlternateIdentifierSubtask" in subtask_ids:
             if not self.account.username:
                 raise TwitterException("Failed to login: no username to relogin")
@@ -1637,11 +1658,28 @@ class Client(BaseHTTPClient):
         flow_token, subtasks = await self._login_enter_password(flow_token)
         flow_token, subtasks = await self._account_duplication_check(flow_token)
 
-        subtask_ids = [subtask["subtask_id"] for subtask in subtasks]
-
-        # TODO IMAP Обработчик
+        subtask_ids = {subtask.id for subtask in subtasks}
         if "LoginAcid" in subtask_ids:
-            raise TwitterException(f"Failed to login: email verification!")
+            if not self.account.email:
+                raise TwitterException(
+                    f"Failed to login. Task id: LoginAcid. No email!"
+                )
+
+            try:
+                # fmt: off
+                flow_token, subtasks = await self._login_acid(flow_token, self.account.email)
+                # fmt: on
+            except HTTPException as exc:
+                if 399 in exc.api_codes:
+                    logger.warning(
+                        f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
+                        f" Bad email!"
+                    )
+                    raise TwitterException(
+                        f"Failed to login. Task id: LoginAcid. Bad email!"
+                    )
+                else:
+                    raise
 
         if "LoginTwoFactorAuthChallenge" in subtask_ids:
             if not self.account.totp_secret:
@@ -1686,7 +1724,7 @@ class Client(BaseHTTPClient):
                 else:
                     raise
 
-        await self._finish_task(flow_token)
+        await self._complete_subtask(flow_token, [])
         return update_backup_code
 
     async def relogin(self):
@@ -1729,13 +1767,13 @@ class Client(BaseHTTPClient):
 
         url = f"https://twitter.com/i/api/1.1/strato/column/User/{self.account.id}/account-security/twoFactorAuthSettings2"
         response, data = await self.request("GET", url)
-        return "Totp" in [
-            method_data["twoFactorType"] for method_data in data["methods"]
-        ]
+        # fmt: off
+        return "Totp" in [method_data["twoFactorType"] for method_data in data["methods"]]
+        # fmt: on
 
-    async def _request_2fa_tasks(self):
+    async def _request_2fa_tasks(self) -> tuple[str, list[Subtask]]:
         """
-        :return: flow_token, subtask_ids
+        :return: flow_token, tasks
         """
         query = {
             "flow_name": "two-factor-auth-app-enrollment",
@@ -1791,34 +1829,37 @@ class Client(BaseHTTPClient):
                 "web_modal": 1,
             },
         }
-        return await self._task(params=query, json=payload)
+        return await self._send_raw_subtask(params=query, json=payload)
 
-    async def _two_factor_enrollment_verify_password_subtask(self, flow_token: str):
-        subtask_inputs = [
+    async def _two_factor_enrollment_verify_password_subtask(
+        self, flow_token: str
+    ) -> tuple[str, list[Subtask]]:
+        inputs = [
             {
                 "subtask_id": "TwoFactorEnrollmentVerifyPasswordSubtask",
                 "enter_password": {
-                    "password": self.account.password,
                     "link": "next_link",
+                    "password": self.account.password,
                 },
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs)
+        return await self._complete_subtask(flow_token, inputs)
 
     async def _two_factor_enrollment_authentication_app_begin_subtask(
         self, flow_token: str
-    ):
-        subtask_inputs = [
+    ) -> tuple[str, list[Subtask]]:
+        inputs = [
             {
                 "subtask_id": "TwoFactorEnrollmentAuthenticationAppBeginSubtask",
                 "action_list": {"link": "next_link"},
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs)
+        return await self._complete_subtask(flow_token, inputs)
 
     async def _two_factor_enrollment_authentication_app_plain_code_subtask(
-        self, flow_token: str
-    ):
+        self,
+        flow_token: str,
+    ) -> tuple[str, list[Subtask]]:
         subtask_inputs = [
             {
                 "subtask_id": "TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask",
@@ -1827,12 +1868,12 @@ class Client(BaseHTTPClient):
             {
                 "subtask_id": "TwoFactorEnrollmentAuthenticationAppEnterCodeSubtask",
                 "enter_text": {
-                    "text": self.account.get_totp_code(),
                     "link": "next_link",
+                    "text": self.account.get_totp_code(),
                 },
             },
         ]
-        return await self._send_task(flow_token, subtask_inputs)
+        return await self._complete_subtask(flow_token, subtask_inputs)
 
     async def _finish_2fa_task(self, flow_token: str):
         subtask_inputs = [
@@ -1841,52 +1882,38 @@ class Client(BaseHTTPClient):
                 "cta": {"link": "finish_link"},
             }
         ]
-        return await self._send_task(flow_token, subtask_inputs)
+        await self._complete_subtask(flow_token, subtask_inputs)
 
     async def _enable_totp(self):
+        # fmt: off
         flow_token, subtasks = await self._request_2fa_tasks()
-        flow_token, subtasks = (
-            await self._two_factor_enrollment_verify_password_subtask(flow_token)
+        flow_token, subtasks = await self._two_factor_enrollment_verify_password_subtask(
+            flow_token
         )
-        flow_token, subtasks = (
-            await self._two_factor_enrollment_authentication_app_begin_subtask(
-                flow_token
-            )
-        )
+        flow_token, subtasks = (await self._two_factor_enrollment_authentication_app_begin_subtask(flow_token))
 
         for subtask in subtasks:
-            if (
-                subtask["subtask_id"]
-                == "TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask"
-            ):
-                self.account.totp_secret = subtask["show_code"]["code"]
+            if subtask.id == "TwoFactorEnrollmentAuthenticationAppPlainCodeSubtask":
+                self.account.totp_secret = subtask.raw_data["show_code"]["code"]
                 break
 
-        flow_token, subtasks = (
-            await self._two_factor_enrollment_authentication_app_plain_code_subtask(
-                flow_token
-            )
-        )
+        flow_token, subtasks = await self._two_factor_enrollment_authentication_app_plain_code_subtask(flow_token)
 
         for subtask in subtasks:
-            if (
-                subtask["subtask_id"]
-                == "TwoFactorEnrollmentAuthenticationAppCompleteSubtask"
-            ):
-                result = re.search(
-                    r"\n[a-z0-9]{12}\n", subtask["cta"]["secondary_text"]["text"]
-                )
+            if subtask.id == "TwoFactorEnrollmentAuthenticationAppCompleteSubtask":
+                result = re.search(r"\n[a-z0-9]{12}\n", subtask.raw_data["cta"]["secondary_text"]["text"])
                 backup_code = result[0].strip() if result else None
                 self.account.backup_code = backup_code
                 break
 
+        # fmt: on
         await self._finish_2fa_task(flow_token)
 
     async def enable_totp(self):
-        if not self.account.password:
-            raise ValueError("Password is required for this action")
-
         if await self.totp_is_enabled():
             return
+
+        if not self.account.password:
+            raise ValueError("Password required to enable TOTP")
 
         await self._enable_totp()

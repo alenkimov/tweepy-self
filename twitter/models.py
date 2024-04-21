@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field, field_validator
@@ -153,3 +153,24 @@ class Tweet(BaseModel):
             "raw_data": data,
         }
         return cls(**values)
+
+
+class Subtask(BaseModel):
+    id: str
+    primary_text: Optional[str] = None
+    secondary_text: Optional[str] = None
+    detail_text: Optional[str] = None
+    raw_data: dict
+
+    @classmethod
+    def from_raw_data(cls, data: dict) -> "Subtask":
+        task = {"id": data["subtask_id"]}
+        if enter_text := data.get("enter_text"):
+            if header := enter_text.get("header"):
+                if primary_text := header.get("primary_text"):
+                    task["primary_text"] = primary_text["text"]
+                if secondary_text := header.get("secondary_text"):
+                    task["secondary_text"] = secondary_text["text"]
+                if detail_text := header.get("detail_text"):
+                    task["detail_text"] = detail_text["text"]
+        return cls(**task, raw_data=data)
