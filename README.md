@@ -6,6 +6,9 @@
 
 A modern, easy to use, feature-rich, and async ready API wrapper for Twitter's user API written in Python.
 
+_NEW!_ Менеджер аккаунтов с базой данных:
+- [tweepy-manager](https://github.com/alenkimov/tweepy-manager)
+
 More libraries of the family:
 - [better-proxy](https://github.com/alenkimov/better_proxy)
 - [better-web3](https://github.com/alenkimov/better_web3)
