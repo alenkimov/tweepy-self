@@ -1627,7 +1627,7 @@ class Client(BaseHTTPClient):
         }
         return await self.request("GET", url, params=params)
 
-    async def _request_guest_token(self) -> str:
+    async def _request_guest_token(self) -> str | None:
         """
         Помимо запроса guest_token также устанавливает в сессию guest_id cookie
 
@@ -1637,13 +1637,21 @@ class Client(BaseHTTPClient):
         response = await self._session.request("GET", url)
         # TODO Если в сессии есть рабочий auth_token, то не вернет нужную страницу.
         #   Поэтому нужно очищать сессию перед вызовом этого метода.
-        guest_token = re.search(r"gt\s?=\s?\d+", response.text)[0].split("=")[1]
+        search_result = re.search(r"gt\s?=\s?\d+", response.text)
+
+        if not search_result:
+            return None
+
+        guest_token = search_result[0].split("=")[1]
         return guest_token
 
     async def _login(self) -> bool:
         update_backup_code = False
 
         guest_token = await self._request_guest_token()
+        if not guest_token:
+            raise TwitterException(f"Failed to login: failed to reqeust guest token")
+
         self._session.headers["X-Guest-Token"] = guest_token
 
         flow_token, subtasks = await self._request_login_tasks()
