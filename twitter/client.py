@@ -288,8 +288,14 @@ class Client(BaseHTTPClient):
             return await self._request(method, url, **kwargs)
 
         except Forbidden as exc:
-            if rerequest_on_bad_ct0 and 353 in exc.api_codes and "ct0" in exc.response.cookies:
-                return await self.request(method, url, rerequest_on_bad_ct0=False, **kwargs)
+            if (
+                rerequest_on_bad_ct0
+                and 353 in exc.api_codes
+                and "ct0" in exc.response.cookies
+            ):
+                return await self.request(
+                    method, url, rerequest_on_bad_ct0=False, **kwargs
+                )
             else:
                 raise
 
