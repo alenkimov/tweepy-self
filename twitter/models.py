@@ -26,6 +26,9 @@ class Media(BaseModel):
     def __str__(self):
         return str(self.id)
 
+    def __hash__(self):
+        return hash(self.id)
+
 
 class User(BaseModel):
     # fmt: off
@@ -45,6 +48,9 @@ class User(BaseModel):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, username={self.username})"
+
+    def __hash__(self):
+        return hash(self.id)
 
     @classmethod
     def from_raw_data(cls, data: dict):
@@ -105,6 +111,9 @@ class Tweet(BaseModel):
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, user_id={self.user.id})"
 
+    def __hash__(self):
+        return hash(self.id)
+
     @property
     def short_text(self) -> str:
         return f"{self.text[:32]}..." if len(self.text) > 16 else self.text
@@ -161,6 +170,9 @@ class Subtask(BaseModel):
     secondary_text: Optional[str] = None
     detail_text: Optional[str] = None
     raw_data: dict
+
+    def __hash__(self):
+        return hash(self.id)
 
     @classmethod
     def from_raw_data(cls, data: dict) -> "Subtask":
