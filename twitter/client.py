@@ -116,13 +116,13 @@ class Client(BaseHTTPClient):
 
         if bearer:
             headers["authorization"] = f"Bearer {self._BEARER_TOKEN}"
-            # headers["x-twitter-auth-type"] = "OAuth2Session"
 
         if auth:
             if not self.account.auth_token:
                 raise ValueError("No auth_token. Login before")
 
             cookies["auth_token"] = self.account.auth_token
+            headers["x-twitter-auth-type"] = "OAuth2Session"
             if self.account.ct0:
                 cookies["ct0"] = self.account.ct0
                 headers["x-csrf-token"] = self.account.ct0
@@ -2047,7 +2047,9 @@ class GQLClient:
     def __init__(self, client: Client):
         self._client = client
 
-    async def gql_request(self, method, operation, **kwargs) -> tuple[requests.Response, dict]:
+    async def gql_request(
+        self, method, operation, **kwargs
+    ) -> tuple[requests.Response, dict]:
         url, query_id = self._operation_to_url(operation)
 
         if method == "POST":
