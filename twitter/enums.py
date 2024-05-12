@@ -8,6 +8,7 @@ class AccountStatus(enum.StrEnum):
     LOCKED = "LOCKED"
     CONSENT_LOCKED = "CONSENT_LOCKED"
     GOOD = "GOOD"
+    NOT_FOUND = "NOT_FOUND"
 
     def __str__(self):
         return self.value

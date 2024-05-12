@@ -22,10 +22,11 @@ from .errors import (
     RateLimited,
     ServerError,
     BadAccount,
-    BadToken,
-    Locked,
-    ConsentLocked,
-    Suspended,
+    BadAccountToken,
+    AccountLocked,
+    AccountConsentLocked,
+    AccountSuspended,
+    AccountNotFound,
 )
 from .utils import to_json
 from .base import BaseHTTPClient
@@ -174,7 +175,7 @@ class Client(BaseHTTPClient):
 
                 if 141 in exc.api_codes:
                     self.account.status = AccountStatus.SUSPENDED
-                    raise Suspended(exc, self.account)
+                    raise AccountSuspended(exc, self.account)
 
                 if 326 in exc.api_codes:
                     for error_data in exc.api_errors:
@@ -184,23 +185,29 @@ class Client(BaseHTTPClient):
                             == "/i/flow/consent_flow"
                         ):
                             self.account.status = AccountStatus.CONSENT_LOCKED
-                            raise ConsentLocked(exc, self.account)
+                            raise AccountConsentLocked(exc, self.account)
 
                     self.account.status = AccountStatus.LOCKED
-                    raise Locked(exc, self.account)
+                    raise AccountLocked(exc, self.account)
                 raise exc
 
             return response, data
 
         if response.status_code == 400:
-            raise BadRequest(response, data)
+            exc = BadRequest(response, data)
+
+            if 399 in exc.api_codes:
+                self.account.status = AccountStatus.NOT_FOUND
+                raise AccountNotFound(exc, self.account)
+
+            raise exc
 
         if response.status_code == 401:
             exc = Unauthorized(response, data)
 
             if 32 in exc.api_codes:
                 self.account.status = AccountStatus.BAD_TOKEN
-                raise BadToken(exc, self.account)
+                raise BadAccountToken(exc, self.account)
 
             raise exc
 
@@ -209,7 +216,7 @@ class Client(BaseHTTPClient):
 
             if 64 in exc.api_codes:
                 self.account.status = AccountStatus.SUSPENDED
-                raise Suspended(exc, self.account)
+                raise AccountSuspended(exc, self.account)
 
             if 326 in exc.api_codes:
                 for error_data in exc.api_errors:
@@ -218,10 +225,10 @@ class Client(BaseHTTPClient):
                         and error_data.get("bounce_location") == "/i/flow/consent_flow"
                     ):
                         self.account.status = AccountStatus.CONSENT_LOCKED
-                        raise ConsentLocked(exc, self.account)
+                        raise AccountConsentLocked(exc, self.account)
 
                 self.account.status = AccountStatus.LOCKED
-                raise Locked(exc, self.account)
+                raise AccountLocked(exc, self.account)
 
             raise exc
 
@@ -267,14 +274,14 @@ class Client(BaseHTTPClient):
         try:
             return await self._request(method, url, **kwargs)
 
-        except Locked:
+        except AccountLocked:
             if not self.capsolver_api_key or not auto_unlock:
                 raise
 
             await self.unlock()
             return await self._request(method, url, **kwargs)
 
-        except BadToken:
+        except BadAccountToken:
             if auto_relogin is None:
                 auto_relogin = self.auto_relogin
             if (
@@ -285,7 +292,7 @@ class Client(BaseHTTPClient):
                 raise
 
             await self.relogin()
-            return await self._request(method, url, **kwargs)
+            return await self.request(method, url, auto_relogin=False, **kwargs)
 
         except Forbidden as exc:
             if (

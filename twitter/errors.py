@@ -13,10 +13,11 @@ __all__ = [
     "RateLimited",
     "ServerError",
     "BadAccount",
-    "BadToken",
-    "Locked",
-    "ConsentLocked",
-    "Suspended",
+    "BadAccountToken",
+    "AccountLocked",
+    "AccountConsentLocked",
+    "AccountSuspended",
+    "AccountNotFound",
 ]
 
 
@@ -149,7 +150,7 @@ class BadAccount(TwitterException):
         super().__init__(exception_message)
 
 
-class BadToken(BadAccount):
+class BadAccountToken(BadAccount):
     def __init__(self, http_exception: "HTTPException", account: Account):
         exception_message = (
             "Bad Twitter account's auth_token. Relogin to get new token."
@@ -157,7 +158,7 @@ class BadToken(BadAccount):
         super().__init__(http_exception, account, exception_message)
 
 
-class Locked(BadAccount):
+class AccountLocked(BadAccount):
     def __init__(self, http_exception: "HTTPException", account: Account):
         exception_message = (
             f"Twitter account is locked."
@@ -166,13 +167,19 @@ class Locked(BadAccount):
         super().__init__(http_exception, account, exception_message)
 
 
-class ConsentLocked(BadAccount):
+class AccountConsentLocked(BadAccount):
     def __init__(self, http_exception: "HTTPException", account: Account):
         exception_message = f"Twitter account is locked."
         super().__init__(http_exception, account, exception_message)
 
 
-class Suspended(BadAccount):
+class AccountSuspended(BadAccount):
     def __init__(self, http_exception: "HTTPException", account: Account):
         exception_message = f"Twitter account is suspended."
+        super().__init__(http_exception, account, exception_message)
+
+
+class AccountNotFound(BadAccount):
+    def __init__(self, http_exception: "HTTPException", account: Account):
+        exception_message = f"Twitter account not found or deleted."
         super().__init__(http_exception, account, exception_message)
