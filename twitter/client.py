@@ -28,7 +28,6 @@ from .errors import (
     AccountSuspended,
     AccountNotFound,
 )
-from .utils import to_json
 from .base import BaseHTTPClient
 from .account import Account, AccountStatus
 from .models import User, Tweet, Media, Subtask
@@ -461,9 +460,9 @@ class Client(BaseHTTPClient):
             "withAuxiliaryUserLabels": False,
         }
         params = {
-            "variables": to_json(variables),
-            "features": to_json(features),
-            "fieldToggles": to_json(field_toggles),
+            "variables": variables,
+            "features": features,
+            "fieldToggles": field_toggles,
         }
         response, data = await self.request("GET", url, params=params)
         if not data["data"]:
@@ -929,8 +928,8 @@ class Client(BaseHTTPClient):
             "responsive_web_enhance_cards_enabled": False,
         }
         params = {
-            "variables": to_json(variables),
-            "features": to_json(features),
+            "variables": variables,
+            "features": features,
         }
         response, response_json = await self.request("GET", url, params=params)
 
@@ -1022,8 +1021,8 @@ class Client(BaseHTTPClient):
             "responsive_web_enhance_cards_enabled": False,
         }
         query = {
-            "variables": to_json(variables),
-            "features": to_json(features),
+            "variables": variables,
+            "features": features,
         }
         response, data = await self.request("GET", url, params=query)
         instructions = data["data"]["threaded_conversation_with_injections_v2"]["instructions"]  # type: ignore
@@ -1067,7 +1066,7 @@ class Client(BaseHTTPClient):
             "responsive_web_media_download_video_enabled": False,
             "responsive_web_enhance_cards_enabled": False,
         }
-        params = {"variables": to_json(variables), "features": to_json(features)}
+        params = {"variables": variables, "features": features}
         response, data = await self.request("GET", url, params=params)
 
         instructions = data["data"]["user"]["result"]["timeline_v2"]["timeline"][
