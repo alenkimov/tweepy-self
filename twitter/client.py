@@ -95,6 +95,8 @@ class Client(BaseHTTPClient):
         self.auto_relogin = auto_relogin
         self._update_account_info_on_startup = update_account_info_on_startup
 
+        self.gql = GQLClient(self)
+
     async def __aenter__(self):
         await self.on_startup()
         return await super().__aenter__()
@@ -1947,3 +1949,146 @@ class Client(BaseHTTPClient):
             raise ValueError("Password required to enable TOTP")
 
         await self._enable_totp()
+
+
+class GQLClient:
+    _GRAPHQL_URL = "https://twitter.com/i/api/graphql"
+    _OPERATION_TO_QUERY_ID = {
+        "CreateRetweet": "ojPdsZsimiJrUGLR1sjUtA",
+        "FavoriteTweet": "lI07N6Otwv1PhnEgXILM7A",
+        "UnfavoriteTweet": "ZYKSe-w7KEslx3JhSIk5LA",
+        "CreateTweet": "v0en1yVV-Ybeek8ClmXwYw",
+        "TweetResultByRestId": "V3vfsYzNEyD9tsf4xoFRgw",
+        "ModerateTweet": "p'jF:GVqCjTcZol0xcBJjw",
+        "DeleteTweet": "VaenaVgh5q5ih7kvyVjgtg",
+        "UserTweets": "V1ze5q3ijDS1VeLwLY0m7g",
+        "TweetDetail": "VWFGPVAGkZMGRKGe3GFFnA",
+        "ProfileSpotlightsQuery": "9zwVLJ48lmVUk8u_Gh9DmA",
+        "Following": "t-BPOrMIduGUJWO_LxcvNQ",
+        "Followers": "3yX7xr2hKjcZYnXt6cU6lQ",
+        "UserByScreenName": "G3KGOASz96M-Qu0nwmGXNg",
+        "UsersByRestIds": "itEhGywpgX9b3GJCzOtSrA",
+        "Viewer": "W62NnYgkgziw9bwyoVht0g",
+    }
+    _DEFAULT_VARIABLES = {
+        "count": 1000,
+        "withSafetyModeUserFields": True,
+        "includePromotedContent": True,
+        "withQuickPromoteEligibilityTweetFields": True,
+        "withVoice": True,
+        "withV2Timeline": True,
+        "withDownvotePerspective": False,
+        "withBirdwatchNotes": True,
+        "withCommunity": True,
+        "withSuperFollowsUserFields": True,
+        "withReactionsMetadata": False,
+        "withReactionsPerspective": False,
+        "withSuperFollowsTweetFields": True,
+        "isMetatagsQuery": False,
+        "withReplays": True,
+        "withClientEventToken": False,
+        "withAttachments": True,
+        "withConversationQueryHighlights": True,
+        "withMessageQueryHighlights": True,
+        "withMessages": True,
+    }
+    _DEFAULT_FEATURES = {
+        "c9s_tweet_anatomy_moderator_badge_enabled": True,
+        "responsive_web_home_pinned_timelines_enabled": True,
+        "blue_business_profile_image_shape_enabled": True,
+        "creator_subscriptions_tweet_preview_api_enabled": True,
+        "freedom_of_speech_not_reach_fetch_enabled": True,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled": True,
+        "graphql_timeline_v2_bookmark_timeline": True,
+        "hidden_profile_likes_enabled": True,
+        "highlights_tweets_tab_ui_enabled": True,
+        "interactive_text_enabled": True,
+        "longform_notetweets_consumption_enabled": True,
+        "longform_notetweets_inline_media_enabled": True,
+        "longform_notetweets_rich_text_read_enabled": True,
+        "longform_notetweets_richtext_consumption_enabled": True,
+        "profile_foundations_tweet_stats_enabled": True,
+        "profile_foundations_tweet_stats_tweet_frequency": True,
+        "responsive_web_birdwatch_note_limit_enabled": True,
+        "responsive_web_edit_tweet_api_enabled": True,
+        "responsive_web_enhance_cards_enabled": False,
+        "responsive_web_graphql_exclude_directive_enabled": True,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
+        "responsive_web_graphql_timeline_navigation_enabled": True,
+        "responsive_web_media_download_video_enabled": False,
+        "responsive_web_text_conversations_enabled": False,
+        "responsive_web_twitter_article_data_v2_enabled": True,
+        "responsive_web_twitter_article_tweet_consumption_enabled": False,
+        "responsive_web_twitter_blue_verified_badge_is_enabled": True,
+        "rweb_lists_timeline_redesign_enabled": True,
+        "spaces_2022_h2_clipping": True,
+        "spaces_2022_h2_spaces_communities": True,
+        "standardized_nudges_misinfo": True,
+        "subscriptions_verification_info_verified_since_enabled": True,
+        "tweet_awards_web_tipping_enabled": False,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": True,
+        "tweetypie_unmention_optimization_enabled": True,
+        "verified_phone_label_enabled": False,
+        "vibe_api_enabled": True,
+        "view_counts_everywhere_api_enabled": True,
+        "hidden_profile_subscriptions_enabled": True,
+        "subscriptions_verification_info_is_identity_verified_enabled": True,
+    }
+
+    @classmethod
+    def _operation_to_url(cls, operation: str) -> tuple[str, str]:
+        """
+        :return: URL and Query ID
+        """
+        query_id = cls._OPERATION_TO_QUERY_ID[operation]
+        url = f"{cls._GRAPHQL_URL}/{query_id}/{operation}"
+        return url, query_id
+
+    def __init__(self, client: Client):
+        self._client = client
+
+    async def gql_request(self, method, operation, **kwargs) -> tuple[requests.Response, dict]:
+        url, query_id = self._operation_to_url(operation)
+
+        if method == "POST":
+            payload = kwargs["json"] = kwargs.get("json") or {}
+            payload["queryId"] = query_id
+        else:
+            params = kwargs["params"] = kwargs.get("params") or {}
+            ...
+
+        response, data = await self._client.request(method, url, **kwargs)
+        return response, data["data"]
+
+    async def user_by_username(self, username: str) -> User | None:
+        features = self._DEFAULT_FEATURES
+        variables = self._DEFAULT_VARIABLES
+        variables["screen_name"] = username
+        params = {
+            "variables": variables,
+            "features": features,
+        }
+        response, data = await self.gql_request(
+            "GET", "UserByScreenName", params=params
+        )
+        return User.from_raw_data(data["user"]["result"]) if data else None
+
+    async def users_by_ids(
+        self, user_ids: Iterable[str | int]
+    ) -> dict[int : User | Account]:
+        features = self._DEFAULT_FEATURES
+        variables = self._DEFAULT_VARIABLES
+        variables["userIds"] = list({str(user_id) for user_id in user_ids})
+        params = {
+            "variables": variables,
+            "features": features,
+        }
+        response, data = await self.gql_request("GET", "UsersByRestIds", params=params)
+
+        users = {}
+        for user_data in data["users"]:
+            user = User.from_raw_data(user_data["result"])
+            users[user.id] = user
+            if user.id == self._client.account.id:
+                users[self._client.account.id] = self._client.account
+        return users
