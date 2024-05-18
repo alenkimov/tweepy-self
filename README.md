@@ -15,6 +15,10 @@ More libraries of the family:
 
 Отдельное спасибо [Кузнице Ботов](https://t.me/bots_forge) за код для авторизации и разморозки! Подписывайтесь на их Telegram :)
 
+Похожие библиотеки:
+- [twikit (sync and async)](https://github.com/d60/twikit)
+- [twitter-api-client (sync)](https://github.com/trevorhobenshield/twitter-api-client)
+
 ## Key Features
 - Modern Pythonic API using async and await.
 - Prevents user account automation detection.
