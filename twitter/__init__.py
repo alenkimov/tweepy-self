@@ -2,7 +2,7 @@
 Twitter API Wrapper
 ~~~~~~~~~~~~~~~~~~~
 
-A basic wrapper for the Twitter user API.
+A Python library for interacting with the Twitter API.
 """
 
 from .client import Client
