@@ -174,7 +174,7 @@ class Client(BaseHTTPClient):
             if isinstance(data, dict) and "errors" in data:
                 exc = HTTPException(response, data)
 
-                if 141 in exc.api_codes:
+                if 141 in exc.api_codes or 37 in exc.api_codes:
                     self.account.status = AccountStatus.SUSPENDED
                     raise AccountSuspended(exc, self.account)
 
