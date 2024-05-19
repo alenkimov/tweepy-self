@@ -126,6 +126,11 @@ class Client(BaseHTTPClient):
             if self.account.ct0:
                 cookies["ct0"] = self.account.ct0
                 headers["x-csrf-token"] = self.account.ct0
+        else:
+            if "auth_token" in cookies:
+                del cookies["auth_token"]
+            if "x-twitter-auth-type" in headers:
+                del headers["x-twitter-auth-type"]
 
         # fmt: off
         log_message = (f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
@@ -1642,31 +1647,23 @@ class Client(BaseHTTPClient):
         }
         return await self.request("GET", url, params=params)
 
-    async def _request_guest_token(self) -> str | None:
+    async def _request_guest_token(self) -> str:
         """
         Помимо запроса guest_token также устанавливает в сессию guest_id cookie
 
         :return: guest_token
         """
-        url = "https://twitter.com"
-        response = await self._session.request("GET", url)
-        # TODO Если в сессии есть рабочий auth_token, то не вернет нужную страницу.
-        #   Поэтому нужно очищать сессию перед вызовом этого метода.
-        search_result = re.search(r"gt\s?=\s?\d+", response.text)
-
-        if not search_result:
-            return None
-
-        guest_token = search_result[0].split("=")[1]
-        return guest_token
+        response, data = await self._request(
+            "POST",
+            "https://api.twitter.com/1.1/guest/activate.json",
+            auth=False,
+        )
+        return data["guest_token"]
 
     async def _login(self) -> bool:
         update_backup_code = False
 
         guest_token = await self._request_guest_token()
-        if not guest_token:
-            raise TwitterException(f"Failed to login: failed to reqeust guest token")
-
         self._session.headers["X-Guest-Token"] = guest_token
 
         flow_token, subtasks = await self._request_login_tasks()
