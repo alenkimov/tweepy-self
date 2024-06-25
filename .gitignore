@@ -4,3 +4,6 @@
 poetry.lock
 poetry.toml
 dist
+
+test*.py
+*.bat
