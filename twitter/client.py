@@ -41,8 +41,8 @@ from .utils import (
 class Client(BaseHTTPClient):
     _BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
     _DEFAULT_HEADERS = {
-        "authority": "twitter.com",
-        "origin": "https://twitter.com",
+        "authority": "x.com",
+        "origin": "https://x.com",
         "x-twitter-active-user": "yes",
         "x-twitter-client-language": "en",
     }
@@ -62,7 +62,7 @@ class Client(BaseHTTPClient):
         "Followers": "3yX7xr2hKjcZYnXt6cU6lQ",
         "UserByScreenName": "G3KGOASz96M-Qu0nwmGXNg",
         "UsersByRestIds": "itEhGywpgX9b3GJCzOtSrA",
-        "Viewer": "W62NnYgkgziw9bwyoVht0g",
+        "Viewer": "-876iyxD1O_0X0BqeykjZA",
     }
     _CAPTCHA_URL = "https://twitter.com/account/access"
     _CAPTCHA_SITE_KEY = "0152B4EB-D2DC-460A-89A1-629838B529C9"
@@ -111,9 +111,9 @@ class Client(BaseHTTPClient):
         wait_on_rate_limit: bool = None,
         **kwargs,
     ) -> tuple[requests.Response, Any]:
-        cookies = kwargs["cookies"] = kwargs.get("cookies") or {}
-        headers = kwargs["headers"] = kwargs.get("headers") or {}
-
+        url = url.replace('twitter.com', 'x.com')
+        cookies = kwargs["cookies"] = kwargs.get("cookies", {})
+        headers = kwargs["headers"] = kwargs.get("headers", {})
         if bearer:
             headers["authorization"] = f"Bearer {self._BEARER_TOKEN}"
 
@@ -159,7 +159,10 @@ class Client(BaseHTTPClient):
                      f"\nResponse data: {data}")
         # fmt: on
 
-        if ct0 := self._session.cookies.get("ct0", domain=".twitter.com"):
+        if ct0 := (
+            self._session.cookies.get("ct0", domain=".x.com")
+            or self._session.cookies.get("ct0", domain=".twitter.com")
+        ):
             self.account.ct0 = ct0
 
         auth_token = self._session.cookies.get("auth_token")
@@ -1629,11 +1632,12 @@ class Client(BaseHTTPClient):
     async def _viewer(self):
         url, query_id = self._action_to_url("Viewer")
         features = {
+            "rweb_tipjar_consumption_enabled": True,
             "responsive_web_graphql_exclude_directive_enabled": True,
             "verified_phone_label_enabled": False,
             "creator_subscriptions_tweet_preview_api_enabled": True,
             "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
-            "responsive_web_graphql_timeline_navigation_enabled": True,
+            "responsive_web_graphql_timeline_navigation_enabled": True
         }
         field_toggles = {
             "isDelegate": False,
@@ -1753,6 +1757,7 @@ class Client(BaseHTTPClient):
                 else:
                     raise
 
+        await self._viewer()
         await self._complete_subtask(flow_token, [])
         return update_backup_code
 
@@ -1770,7 +1775,6 @@ class Client(BaseHTTPClient):
             raise ValueError("No password")
 
         update_backup_code = await self._login()
-        await self._viewer()
 
         if update_backup_code:
             await self.update_backup_code()
@@ -1965,7 +1969,7 @@ class GQLClient:
         "Followers": "3yX7xr2hKjcZYnXt6cU6lQ",
         "UserByScreenName": "G3KGOASz96M-Qu0nwmGXNg",
         "UsersByRestIds": "itEhGywpgX9b3GJCzOtSrA",
-        "Viewer": "W62NnYgkgziw9bwyoVht0g",
+        "Viewer": "-876iyxD1O_0X0BqeykjZA",
     }
     _DEFAULT_VARIABLES = {
         "count": 1000,

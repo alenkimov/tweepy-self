@@ -50,7 +50,7 @@ class Account(User):
 
     def get_totp_code(self) -> str | None:
         if not self.totp_secret:
-            raise ValueError("No key2fa")
+            raise ValueError("No totp_secret")
 
         return str(pyotp.TOTP(self.totp_secret).now())
 
