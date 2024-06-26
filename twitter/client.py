@@ -46,12 +46,12 @@ class Client(BaseHTTPClient):
         "x-twitter-active-user": "yes",
         "x-twitter-client-language": "en",
     }
-    _GRAPHQL_URL = "https://twitter.com/i/api/graphql"
+    _GRAPHQL_URL = "https://x.com/i/api/graphql"
     _ACTION_TO_QUERY_ID = {
         "CreateRetweet": "ojPdsZsimiJrUGLR1sjUtA",
         "FavoriteTweet": "lI07N6Otwv1PhnEgXILM7A",
         "UnfavoriteTweet": "ZYKSe-w7KEslx3JhSIk5LA",
-        "CreateTweet": "v0en1yVV-Ybeek8ClmXwYw",
+        "CreateTweet": "oB-5XsHNAbjvARJEc8CZFw",
         "TweetResultByRestId": "V3vfsYzNEyD9tsf4xoFRgw",
         "ModerateTweet": "p'jF:GVqCjTcZol0xcBJjw",
         "DeleteTweet": "VaenaVgh5q5ih7kvyVjgtg",
@@ -64,7 +64,7 @@ class Client(BaseHTTPClient):
         "UsersByRestIds": "itEhGywpgX9b3GJCzOtSrA",
         "Viewer": "-876iyxD1O_0X0BqeykjZA",
     }
-    _CAPTCHA_URL = "https://twitter.com/account/access"
+    _CAPTCHA_URL = "https://x.com/account/access"
     _CAPTCHA_SITE_KEY = "0152B4EB-D2DC-460A-89A1-629838B529C9"
 
     @classmethod
@@ -111,7 +111,6 @@ class Client(BaseHTTPClient):
         wait_on_rate_limit: bool = None,
         **kwargs,
     ) -> tuple[requests.Response, Any]:
-        url = url.replace('twitter.com', 'x.com')
         cookies = kwargs["cookies"] = kwargs.get("cookies", {})
         headers = kwargs["headers"] = kwargs.get("headers", {})
         if bearer:
@@ -159,10 +158,7 @@ class Client(BaseHTTPClient):
                      f"\nResponse data: {data}")
         # fmt: on
 
-        if ct0 := (
-            self._session.cookies.get("ct0", domain=".x.com")
-            or self._session.cookies.get("ct0", domain=".twitter.com")
-        ):
+        if ct0 := self._session.cookies.get("ct0", domain=".x.com"):
             self.account.ct0 = ct0
 
         auth_token = self._session.cookies.get("auth_token")
@@ -330,7 +326,7 @@ class Client(BaseHTTPClient):
         scope: str,
         response_type: str,
     ) -> str:
-        url = "https://twitter.com/i/api/2/oauth2/authorize"
+        url = "https://x.com/i/api/2/oauth2/authorize"
         querystring = {
             "client_id": client_id,
             "code_challenge": code_challenge,
@@ -352,7 +348,7 @@ class Client(BaseHTTPClient):
         headers = {"content-type": "application/x-www-form-urlencoded"}
         await self.request(
             "POST",
-            "https://twitter.com/i/api/2/oauth2/authorize",
+            "https://x.com/i/api/2/oauth2/authorize",
             headers=headers,
             data=data,
         )
@@ -396,7 +392,7 @@ class Client(BaseHTTPClient):
 
         :return: Response: html страница привязки приложения (аутентификации) старого типа.
         """
-        url = "https://api.twitter.com/oauth/authenticate"
+        url = "https://api.x.com/oauth/authenticate"
         oauth_params["oauth_token"] = oauth_token
         response, _ = await self.request("GET", url, params=oauth_params)
 
@@ -414,7 +410,7 @@ class Client(BaseHTTPClient):
         authenticity_token: str,
         redirect_after_login_url: str,
     ) -> requests.Response:
-        url = "https://api.twitter.com/oauth/authorize"
+        url = "https://api.x.com/oauth/authorize"
         params = {
             "redirect_after_login": redirect_after_login_url,
             "authenticity_token": authenticity_token,
@@ -444,7 +440,7 @@ class Client(BaseHTTPClient):
         return authenticity_token, redirect_url
 
     async def _update_account_username(self):
-        url = "https://twitter.com/i/api/1.1/account/settings.json"
+        url = "https://x.com/i/api/1.1/account/settings.json"
         response, response_json = await self.request("POST", url)
         self.account.username = response_json["screen_name"]
 
@@ -559,7 +555,7 @@ class Client(BaseHTTPClient):
 
         :return: Media
         """
-        url = "https://upload.twitter.com/1.1/media/upload.json"
+        url = "https://upload.x.com/1.1/media/upload.json"
         payload = {"media_data": base64.b64encode(image)}
         for attempt in range(attempts):
             try:
@@ -584,7 +580,7 @@ class Client(BaseHTTPClient):
                     raise
 
     async def _follow_action(self, action: str, user_id: int | str) -> bool:
-        url = f"https://twitter.com/i/api/1.1/friendships/{action}.json"
+        url = f"https://x.com/i/api/1.1/friendships/{action}.json"
         params = {
             "include_profile_interstitial_type": "1",
             "include_blocking": "1",
@@ -714,7 +710,7 @@ class Client(BaseHTTPClient):
         return is_deleted
 
     async def pin_tweet(self, tweet_id: str | int) -> bool:
-        url = "https://api.twitter.com/1.1/account/pin_tweet.json"
+        url = "https://api.x.com/1.1/account/pin_tweet.json"
         data = {
             "tweet_mode": "extended",
             "id": str(tweet_id),
@@ -889,7 +885,7 @@ class Client(BaseHTTPClient):
         """
         :return: Raw vote information
         """
-        url = "https://caps.twitter.com/v2/capi/passthrough/1"
+        url = "https://caps.x.com/v2/capi/passthrough/1"
         params = {
             "twitter:string:card_uri": f"card://{card_id}",
             "twitter:long:original_tweet_id": str(tweet_id),
@@ -1104,7 +1100,7 @@ class Client(BaseHTTPClient):
         """
         :return: Image URL
         """
-        url = f"https://api.twitter.com/1.1/account/update_profile_{type}.json"
+        url = f"https://api.x.com/1.1/account/update_profile_{type}.json"
         params = {
             "media_id": str(media_id),
             "include_profile_interstitial_type": "1",
@@ -1139,7 +1135,7 @@ class Client(BaseHTTPClient):
         return await self._update_profile_image("banner", media_id)
 
     async def change_username(self, username: str) -> bool:
-        url = "https://twitter.com/i/api/1.1/account/settings.json"
+        url = "https://x.com/i/api/1.1/account/settings.json"
         payload = {"screen_name": username}
         response, data = await self.request("POST", url, data=payload)
         new_username = data["screen_name"]
@@ -1154,7 +1150,7 @@ class Client(BaseHTTPClient):
         if not self.account.password:
             raise ValueError(f"Specify the current password before changing it")
 
-        url = "https://twitter.com/i/api/i/account/change_password.json"
+        url = "https://x.com/i/api/i/account/change_password.json"
         payload = {
             "current_password": self.account.password,
             "password": password,
@@ -1178,7 +1174,7 @@ class Client(BaseHTTPClient):
         if name is None and description is None:
             raise ValueError("Specify at least one param")
 
-        url = "https://twitter.com/i/api/1.1/account/update_profile.json"
+        url = "https://x.com/i/api/1.1/account/update_profile.json"
         # Создаем словарь data, включая в него только те ключи, для которых значения не равны None
         payload = {
             k: v
@@ -1203,7 +1199,7 @@ class Client(BaseHTTPClient):
         return updated
 
     async def establish_status(self):
-        url = "https://twitter.com/i/api/1.1/account/update_profile.json"
+        url = "https://x.com/i/api/1.1/account/update_profile.json"
         try:
             await self.request("POST", url, auto_unlock=False, auto_relogin=False)
             self.account.status = AccountStatus.GOOD
@@ -1218,7 +1214,7 @@ class Client(BaseHTTPClient):
         visibility: Literal["self", "mutualfollow"] = "self",
         year_visibility: Literal["self"] = "self",
     ) -> bool:
-        url = "https://twitter.com/i/api/1.1/account/update_profile.json"
+        url = "https://x.com/i/api/1.1/account/update_profile.json"
         payload = {
             "birthdate_day": day,
             "birthdate_month": month,
@@ -1243,7 +1239,7 @@ class Client(BaseHTTPClient):
         """
         :return: Event data
         """
-        url = "https://api.twitter.com/1.1/direct_messages/events/new.json"
+        url = "https://api.x.com/1.1/direct_messages/events/new.json"
         payload = {
             "event": {
                 "type": "message_create",
@@ -1265,7 +1261,7 @@ class Client(BaseHTTPClient):
 
         :return: Event data
         """
-        url = f"https://api.twitter.com/2/dm_conversations/{conversation_id}/messages"
+        url = f"https://api.x.com/2/dm_conversations/{conversation_id}/messages"
         payload = {"text": text}
         response, response_json = await self.request("POST", url, json=payload)
         event_data = response_json["event"]
@@ -1275,7 +1271,7 @@ class Client(BaseHTTPClient):
         """
         :return: Messages data
         """
-        url = "https://twitter.com/i/api/1.1/dm/inbox_initial_state.json"
+        url = "https://x.com/i/api/1.1/dm/inbox_initial_state.json"
         params = {
             "nsfw_filtering_enabled": "false",
             "filter_low_quality": "false",
@@ -1417,7 +1413,7 @@ class Client(BaseHTTPClient):
                 verification_string=token,
             )
 
-            if response.url == "https://twitter.com/?lang=en":
+            if response.url == "https://x.com/?lang=en":
                 break
 
             (
@@ -1447,7 +1443,7 @@ class Client(BaseHTTPClient):
         await self.establish_status()
 
     async def update_backup_code(self):
-        url = "https://api.twitter.com/1.1/account/backup_code.json"
+        url = "https://api.x.com/1.1/account/backup_code.json"
         response, response_json = await self.request("GET", url)
         self.account.backup_code = response_json["codes"][0]
 
@@ -1455,7 +1451,7 @@ class Client(BaseHTTPClient):
         """
         :return: flow_token and subtasks
         """
-        url = "https://api.twitter.com/1.1/onboarding/task.json"
+        url = "https://api.x.com/1.1/onboarding/task.json"
         response, data = await self.request("POST", url, **request_kwargs)
         subtasks = [
             Subtask.from_raw_data(subtask_data) for subtask_data in data["subtasks"]
@@ -1637,7 +1633,7 @@ class Client(BaseHTTPClient):
             "verified_phone_label_enabled": False,
             "creator_subscriptions_tweet_preview_api_enabled": True,
             "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
-            "responsive_web_graphql_timeline_navigation_enabled": True
+            "responsive_web_graphql_timeline_navigation_enabled": True,
         }
         field_toggles = {
             "isDelegate": False,
@@ -1659,7 +1655,7 @@ class Client(BaseHTTPClient):
         """
         response, data = await self._request(
             "POST",
-            "https://api.twitter.com/1.1/guest/activate.json",
+            "https://api.x.com/1.1/guest/activate.json",
             auth=False,
         )
         return data["guest_token"]
@@ -1798,7 +1794,7 @@ class Client(BaseHTTPClient):
         if not self.account.id:
             await self.update_account_info()
 
-        url = f"https://twitter.com/i/api/1.1/strato/column/User/{self.account.id}/account-security/twoFactorAuthSettings2"
+        url = f"https://x.com/i/api/1.1/strato/column/User/{self.account.id}/account-security/twoFactorAuthSettings2"
         response, data = await self.request("GET", url)
         # fmt: off
         return "Totp" in [method_data["twoFactorType"] for method_data in data["methods"]]
@@ -1953,7 +1949,7 @@ class Client(BaseHTTPClient):
 
 
 class GQLClient:
-    _GRAPHQL_URL = "https://twitter.com/i/api/graphql"
+    _GRAPHQL_URL = "https://x.com/i/api/graphql"
     _OPERATION_TO_QUERY_ID = {
         "CreateRetweet": "ojPdsZsimiJrUGLR1sjUtA",
         "FavoriteTweet": "lI07N6Otwv1PhnEgXILM7A",
