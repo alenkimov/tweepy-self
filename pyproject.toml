@@ -12,7 +12,7 @@ Source = "https://github.com/alenkimov/tweepy-self"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-curl_cffi = "0.6.2"
+curl_cffi = "0.7.0"
 better-proxy = "^1.1"
 beautifulsoup4 = "^4"
 pydantic = "^2"
