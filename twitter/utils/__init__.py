@@ -17,6 +17,7 @@ from .other import (
     to_datetime,
     hidden_value,
     tweets_data_from_instructions,
+    encode_x_client_transaction_id,
 )
 
 
@@ -35,4 +36,5 @@ __all__ = [
     "to_datetime",
     "hidden_value",
     "tweets_data_from_instructions",
+    "encode_x_client_transaction_id",
 ]

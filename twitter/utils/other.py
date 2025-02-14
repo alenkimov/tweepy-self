@@ -1,4 +1,8 @@
 from datetime import datetime
+import base64
+
+def encode_x_client_transaction_id(path: str) -> str:
+    return base64.b64encode(f"e:{path}".encode()).decode()
 
 
 def remove_at_sign(username: str) -> str:

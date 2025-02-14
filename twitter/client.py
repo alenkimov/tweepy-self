@@ -31,11 +31,10 @@ from .errors import (
 from .base import BaseHTTPClient
 from .account import Account, AccountStatus
 from .models import User, Tweet, Media, Subtask
-from .utils import (
-    parse_oauth_html,
-    parse_unlock_html,
-    tweets_data_from_instructions,
-)
+from .utils import parse_oauth_html
+from .utils import parse_unlock_html
+from .utils import tweets_data_from_instructions
+from .utils import encode_x_client_transaction_id
 
 
 class Client(BaseHTTPClient):
@@ -103,8 +102,8 @@ class Client(BaseHTTPClient):
 
     async def _request(
         self,
-        method,
-        url,
+        method: str,
+        url: str | URL,
         *,
         auth: bool = True,
         bearer: bool = True,
@@ -113,6 +112,10 @@ class Client(BaseHTTPClient):
     ) -> tuple[requests.Response, Any]:
         cookies = kwargs["cookies"] = kwargs.get("cookies", {})
         headers = kwargs["headers"] = kwargs.get("headers", {})
+
+        url = URL(url)
+        headers["x-client-transaction-id"] = encode_x_client_transaction_id(url.path)
+
         if bearer:
             headers["authorization"] = f"Bearer {self._BEARER_TOKEN}"
 
@@ -140,7 +143,7 @@ class Client(BaseHTTPClient):
         # fmt: on
 
         try:
-            response = await self._session.request(method, url, **kwargs)
+            response = await self._session.request(method, str(url), **kwargs)
         except requests.errors.RequestsError as exc:
             if exc.code == 35:
                 msg = (
@@ -178,12 +181,12 @@ class Client(BaseHTTPClient):
             if isinstance(data, dict) and "errors" in data:
                 exc = HTTPException(response, data)
 
-                if 141 in exc.api_codes or 37 in exc.api_codes:
+                if 141 in exc.error_codes or 37 in exc.error_codes:
                     self.account.status = AccountStatus.SUSPENDED
                     raise AccountSuspended(exc, self.account)
 
-                if 326 in exc.api_codes:
-                    for error_data in exc.api_errors:
+                if 326 in exc.error_codes:
+                    for error_data in exc.errors:
                         if (
                             error_data.get("code") == 326
                             and error_data.get("bounce_location")
@@ -201,7 +204,7 @@ class Client(BaseHTTPClient):
         if response.status_code == 400:
             exc = BadRequest(response, data)
 
-            if 399 in exc.api_codes:
+            if 399 in exc.error_codes:
                 self.account.status = AccountStatus.NOT_FOUND
                 raise AccountNotFound(exc, self.account)
 
@@ -210,7 +213,7 @@ class Client(BaseHTTPClient):
         if response.status_code == 401:
             exc = Unauthorized(response, data)
 
-            if 32 in exc.api_codes:
+            if 32 in exc.error_codes:
                 self.account.status = AccountStatus.BAD_TOKEN
                 raise BadAccountToken(exc, self.account)
 
@@ -219,12 +222,12 @@ class Client(BaseHTTPClient):
         if response.status_code == 403:
             exc = Forbidden(response, data)
 
-            if 64 in exc.api_codes:
+            if 64 in exc.error_codes:
                 self.account.status = AccountStatus.SUSPENDED
                 raise AccountSuspended(exc, self.account)
 
-            if 326 in exc.api_codes:
-                for error_data in exc.api_errors:
+            if 326 in exc.error_codes:
+                for error_data in exc.errors:
                     if (
                         error_data.get("code") == 326
                         and error_data.get("bounce_location") == "/i/flow/consent_flow"
@@ -268,8 +271,8 @@ class Client(BaseHTTPClient):
 
     async def request(
         self,
-        method,
-        url,
+        method: str,
+        url: str | URL,
         *,
         auto_unlock: bool = True,
         auto_relogin: bool = None,
@@ -302,7 +305,7 @@ class Client(BaseHTTPClient):
         except Forbidden as exc:
             if (
                 rerequest_on_bad_ct0
-                and 353 in exc.api_codes
+                and 353 in exc.error_codes
                 and "ct0" in exc.response.cookies
             ):
                 return await self.request(
@@ -440,7 +443,7 @@ class Client(BaseHTTPClient):
         return authenticity_token, redirect_url
 
     async def _update_account_username(self):
-        url = "https://x.com/i/api/1.1/account/settings.json"
+        url = "https://api.x.com/1.1/account/settings.json"
         response, response_json = await self.request("POST", url)
         self.account.username = response_json["screen_name"]
 
@@ -637,7 +640,7 @@ class Client(BaseHTTPClient):
             if (
                 search_duplicate
                 and 327
-                in exc.api_codes  # duplicate retweet (You have already retweeted this Tweet)
+                in exc.error_codes  # duplicate retweet (You have already retweeted this Tweet)
             ):
                 tweets = await self.request_tweets(self.account.id)
                 duplicate_tweet = None
@@ -681,7 +684,7 @@ class Client(BaseHTTPClient):
         try:
             response_json = await self._interact_with_tweet("FavoriteTweet", tweet_id)
         except HTTPException as exc:
-            if 139 in exc.api_codes:
+            if 139 in exc.error_codes:
                 # Already liked
                 return True
             else:
@@ -805,7 +808,7 @@ class Client(BaseHTTPClient):
         except HTTPException as exc:
             if (
                 search_duplicate
-                and 187 in exc.api_codes  # duplicate tweet (Status is a duplicate)
+                and 187 in exc.error_codes  # duplicate tweet (Status is a duplicate)
             ):
                 tweets = await self.request_tweets()
                 duplicate_tweet = None
@@ -1202,9 +1205,9 @@ class Client(BaseHTTPClient):
         return updated
 
     async def establish_status(self):
-        url = "https://x.com/i/api/1.1/account/update_profile.json"
+        url = "https://api.x.com/1.1/account/personalization/p13n_preferences.json"
         try:
-            await self.request("POST", url, auto_unlock=False, auto_relogin=False)
+            await self.request("GET", url, auto_unlock=False, auto_relogin=False)
             self.account.status = AccountStatus.GOOD
         except BadAccount:
             pass
@@ -1700,7 +1703,7 @@ class Client(BaseHTTPClient):
                     flow_token, subtasks = await self._login_acid(flow_token, self.account.email)
                     # fmt: on
                 except HTTPException as exc:
-                    if 399 in exc.api_codes:
+                    if 399 in exc.error_codes:
                         logger.warning(
                             f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
                             f" Bad email!"
@@ -1724,7 +1727,7 @@ class Client(BaseHTTPClient):
                 flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token, self.account.get_totp_code())
                 # fmt: on
             except HTTPException as exc:
-                if 399 in exc.api_codes:
+                if 399 in exc.error_codes:
                     logger.warning(
                         f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
                         f" Bad TOTP secret!"
@@ -1740,7 +1743,7 @@ class Client(BaseHTTPClient):
                     try:
                         flow_token, subtasks = await self._login_two_factor_auth_challenge(flow_token, self.account.backup_code)
                     except HTTPException as exc:
-                        if 399 in exc.api_codes:
+                        if 399 in exc.error_codes:
                             logger.warning(
                                 f"(auth_token={self.account.hidden_auth_token}, id={self.account.id}, username={self.account.username})"
                                 f" Bad backup code!"

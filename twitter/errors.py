@@ -41,10 +41,7 @@ def _http_exception_message(
     if detail:
         exception_message += f"\n(detail) {detail}"
     for error in api_errors:
-        if "code" in error and "message" in error:
-            exception_message += f"\n(code {error['code']}) {error['message']}"
-        elif "message" in error:
-            exception_message += f"\n{error['message']}"
+        exception_message += f"\n{error}"
     return exception_message
 
 
@@ -58,9 +55,8 @@ class HTTPException(TwitterException):
         custom_exception_message: str = None,
     ):
         self.response = response
-        self.api_errors: list[dict] = []
-        self.api_codes: list[int] = []
-        self.api_messages: list[str] = []
+        self.errors: list[dict] = []
+        self.error_codes: list[int] = []
         self.detail: str | None = None
         self.html: str | None = None
 
@@ -81,17 +77,15 @@ class HTTPException(TwitterException):
             super().__init__(exception_message)
             return
 
-        self.api_errors = data.get("errors", [data])
+        self.errors = data.get("errors", [data])
         self.detail = data.get("detail")
 
-        for error in self.api_errors:
+        for error in self.errors:
             if "code" in error:
-                self.api_codes.append(error["code"])
-            if "message" in error:
-                self.api_messages.append(error["message"])
+                self.error_codes.append(error["code"])
 
         exception_message = _http_exception_message(
-            response, self.api_errors, self.detail, custom_exception_message
+            response, self.errors, self.detail, custom_exception_message
         )
         super().__init__(exception_message)
 
@@ -143,7 +137,7 @@ class BadAccount(TwitterException):
         self.account = account
         exception_message = _http_exception_message(
             http_exception.response,
-            http_exception.api_errors,
+            http_exception.errors,
             http_exception.detail,
             custom_exception_message or "Bad Twitter account.",
         )
