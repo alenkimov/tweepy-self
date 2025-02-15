@@ -1,5 +1,5 @@
 # Tweepy-self
-[![Telegram channel](https://img.shields.io/endpoint?url=https://runkit.io/damiankrawczyk/telegram-badge/branches/master?url=https://t.me/cum_insider)](https://t.me/cum_insider)
+[![Telegram channel](https://img.shields.io/endpoint?color=neon&url=https://tg.sumanjay.workers.dev/cum_insider)](https://t.me/cum_insider)
 [![PyPI version info](https://img.shields.io/pypi/v/tweepy-self.svg)](https://pypi.python.org/pypi/tweepy-self)
 [![PyPI supported Python versions](https://img.shields.io/pypi/pyversions/tweepy-self.svg)](https://pypi.python.org/pypi/tweepy-self)
 [![PyPI downloads per month](https://img.shields.io/pypi/dm/tweepy-self.svg)](https://pypi.python.org/pypi/tweepy-self)
@@ -11,13 +11,12 @@ _NEW!_ Менеджер аккаунтов с базой данных:
 
 More libraries of the family:
 - [better-proxy](https://github.com/alenkimov/better_proxy)
-- [better-web3](https://github.com/alenkimov/better_web3)
+
+Похожие библиотеки:
+- [twikit (async)](https://github.com/d60/twikit)
 
 Отдельное спасибо [Кузнице Ботов](https://t.me/bots_forge) за код для авторизации и разморозки! Подписывайтесь на их Telegram :)
 
-Похожие библиотеки:
-- [twikit (sync and async)](https://github.com/d60/twikit)
-- [twitter-api-client (sync)](https://github.com/trevorhobenshield/twitter-api-client)
 
 ## Key Features
 - Modern Pythonic API using async and await.
