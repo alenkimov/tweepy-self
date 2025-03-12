@@ -59,7 +59,7 @@ class Client(BaseHTTPClient):
         "ProfileSpotlightsQuery": "9zwVLJ48lmVUk8u_Gh9DmA",
         "Following": "t-BPOrMIduGUJWO_LxcvNQ",
         "Followers": "3yX7xr2hKjcZYnXt6cU6lQ",
-        "UserByScreenName": "G3KGOASz96M-Qu0nwmGXNg",
+        "UserByScreenName": "32pL5BWe9WKeSK1MoPvFQQ",
         "UsersByRestIds": "itEhGywpgX9b3GJCzOtSrA",
         "Viewer": "-876iyxD1O_0X0BqeykjZA",
     }
@@ -464,6 +464,10 @@ class Client(BaseHTTPClient):
             "creator_subscriptions_tweet_preview_api_enabled": True,
             "responsive_web_graphql_skip_user_profile_image_extensions_enabled": False,
             "responsive_web_graphql_timeline_navigation_enabled": True,
+            "responsive_web_twitter_article_notes_tab_enabled": True,
+            "profile_label_improvements_pcf_label_in_post_enabled": True,
+            "rweb_tipjar_consumption_enabled": True,
+            "subscriptions_feature_can_gift_premium": True
         }
         field_toggles = {
             "withAuxiliaryUserLabels": False,
@@ -1969,7 +1973,7 @@ class GQLClient:
         "ProfileSpotlightsQuery": "9zwVLJ48lmVUk8u_Gh9DmA",
         "Following": "t-BPOrMIduGUJWO_LxcvNQ",
         "Followers": "3yX7xr2hKjcZYnXt6cU6lQ",
-        "UserByScreenName": "G3KGOASz96M-Qu0nwmGXNg",
+        "UserByScreenName": "32pL5BWe9WKeSK1MoPvFQQ",
         "UsersByRestIds": "itEhGywpgX9b3GJCzOtSrA",
         "Viewer": "-876iyxD1O_0X0BqeykjZA",
     }
@@ -2036,6 +2040,10 @@ class GQLClient:
         "view_counts_everywhere_api_enabled": True,
         "hidden_profile_subscriptions_enabled": True,
         "subscriptions_verification_info_is_identity_verified_enabled": True,
+        "responsive_web_twitter_article_notes_tab_enabled": True,
+        "profile_label_improvements_pcf_label_in_post_enabled": True,
+        "rweb_tipjar_consumption_enabled": True,
+        "subscriptions_feature_can_gift_premium": True
     }
 
     @classmethod
@@ -2097,3 +2105,4 @@ class GQLClient:
             if user.id == self._client.account.id:
                 users[self._client.account.id] = self._client.account
         return users
+    
